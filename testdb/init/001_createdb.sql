@@ -1,0 +1,3 @@
+CREATE USER bibliogar WITH ENCRYPTED PASSWORD 'secret' ;
+
+CREATE DATABASE bibliogar WITH OWNER bibliogar;

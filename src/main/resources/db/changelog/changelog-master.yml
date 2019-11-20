@@ -1,0 +1,210 @@
+databaseChangeLog:
+  - changeSet:
+      id: 1
+      author: Pawel
+      runInTransaction: true
+      changes:
+        - createTable:
+            tableName: users
+            columns:
+              - column:
+                  name: user_id
+                  type: uuid
+                  constraints:
+                    primaryKey: true
+              - column:
+                  name: email
+                  type: varchar(320)
+                  constraints:
+                    nullable: false
+                    unique: true
+              - column:
+                  name: nick_name
+                  type: varchar
+              - column:
+                  name: created_at
+                  type: timestamptz
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: timestamptz
+                  constraints:
+                    nullable: false
+
+        - createIndex:
+            tableName: users
+            columns:
+              - column:
+                  name: email
+
+        - createTable:
+            tableName: user_auth
+            columns:
+              - column:
+                  name: user_id
+                  type: uuid
+                  constraints:
+                    primaryKey: true
+                    foreignKeyName: fk_user
+                    deleteCascade: true
+                    references: users(user_id)
+              - column:
+                  name: password_hash
+                  type: varchar
+                  constraints:
+                    nullable: false
+              - column:
+                  name: confirmed
+                  type: boolean
+                  constraints:
+                    nullable: false
+              - column:
+                  name: enabled
+                  type: boolean
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: timestamptz
+                  constraints:
+                    nullable: false
+
+        - createTable:
+            tableName: user_tokens
+            columns:
+              - column:
+                  name: token
+                  type: varchar(64)
+                  constraints:
+                    primaryKey: true
+              - column:
+                  name: account
+                  type: uuid
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_user_token
+                    deleteCascade: true
+                    references: users(user_id)
+              - column:
+                  name: type
+                  type: varchar(20)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: timestamptz
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: timestamptz
+                  constraints:
+                    nullable: false
+
+              - createIndex:
+                  tableName: user_tokens
+                  columns:
+                    - column:
+                        name: account
+
+        - sql:
+            dbms: postgresql
+            sql: "ALTER TABLE user_tokens ADD CONSTRAINT token_type_check CHECK (type IN ('Registration', 'PasswordReset'))"
+
+        - createTable:
+            tableName: devices
+            columns:
+              - column:
+                  name: device_id
+                  type: uuid
+                  constraints:
+                    primaryKey: true
+              - column:
+                  name: unique_id
+                  type: varchar
+              - column:
+                  name: brand
+                  type: varchar
+              - column:
+                  name: device_info_id
+                  type: varchar
+              - column:
+                  name: device_name
+                  type: varchar
+              - column:
+                  name: created_at
+                  type: timestamptz
+                  constraints:
+                    nullable: false
+              - column:
+                 name: updated_at
+                 type: timestamptz
+                 constraints:
+                   nullable: false
+
+        - createTable:
+            tableName: api_keys
+            columns:
+              - column:
+                  name: key_id
+                  type: uuid
+                  constraints:
+                    primaryKey: true
+              - column:
+                  name: api_key
+                  type: varchar
+                  constraints:
+                    nullable: false
+                    unique: true
+              - column:
+                  name: user_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_user
+                    deleteCascade: true
+                    references: users(user_id)
+              - column:
+                  name: device_id
+                  type: uuid
+                  constraints:
+                    foreignKeyName: fk_device
+                    deleteCascade: true
+                    references: devices(device_id)
+              - column:
+                  name: key_type
+                  type: varchar(20)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: description
+                  type: varchar(255)
+              - column:
+                  name: enabled
+                  type: boolean
+                  constraints:
+                    nullable: false
+              - column:
+                  name: valid_to
+                  type: timestamptz
+              - column:
+                  name: created_at
+                  type: timestamptz
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: timestamptz
+                  constraints:
+                    nullable: false
+
+        - sql:
+            dbms: postgresql
+            sql: "ALTER TABLE api_keys ADD CONSTRAINT key_type_check CHECK (key_type IN ('Device', 'User'))"
+
+        - createIndex:
+            tableName: api_keys
+            columns:
+              - column:
+                  name: user_id

@@ -1,0 +1,45 @@
+import sbt._
+import Keys._
+
+object ScalaOpts {
+  val options = scalacOptions ++= Seq(
+    "-deprecation",
+    "-encoding",
+    "utf-8",
+    "-explaintypes",
+    "-feature",
+    "-language:existentials",
+    "-language:experimental.macros",
+    "-language:higherKinds",
+    "-language:implicitConversions",
+    "-unchecked",
+    "-Xcheckinit",
+    "-Xlint:delayedinit-select",
+    "-Xlint:doc-detached",
+    "-Xlint:inaccessible",
+    "-Xlint:infer-any",
+    "-Xlint:missing-interpolator",
+    "-Xlint:nullary-unit",
+    "-Xlint:option-implicit",
+    "-Xlint:package-object-classes",
+    "-Xlint:poly-implicit-overload",
+    "-Xlint:private-shadow",
+    "-Xlint:stars-align",
+    "-Xlint:type-parameter-shadow",
+    "-Xlint:constant",
+    "-Wdead-code",
+    "-Wextra-implicit",
+    "-Wnumeric-widen",
+    "-Wunused:imports",
+    "-Wunused:patvars",
+    "-Wunused:privates",
+    "-Wunused:locals",
+    "-Wunused:explicits",
+    "-Wunused:implicits",
+    "-Wunused:params",
+    "-Wunused:linted",
+    "-Wvalue-discard",
+    "-Werror",
+    "-P:splain:all:true"
+  )
+}
