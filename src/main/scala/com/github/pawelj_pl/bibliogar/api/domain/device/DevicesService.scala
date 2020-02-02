@@ -3,10 +3,12 @@ package com.github.pawelj_pl.bibliogar.api.domain.device
 import cats.data.EitherT
 import cats.effect.Sync
 import cats.{Applicative, ~>}
+import cats.instances.string._
 import cats.syntax.apply._
 import cats.syntax.bifunctor._
 import cats.syntax.flatMap._
 import cats.syntax.functor._
+import cats.syntax.show._
 import com.github.pawelj_pl.bibliogar.api.DeviceError
 import com.github.pawelj_pl.bibliogar.api.domain.user.{ApiKey, ApiKeyRepositoryAlgebra, KeyType}
 import com.github.pawelj_pl.bibliogar.api.infrastructure.config.Config.MobileAppConfig
@@ -37,7 +39,11 @@ object DevicesService {
 
     override def registerDevice(userId: FUUID, dto: DeviceRegistrationReq): F[(Device, ApiKey)] =
       dbToF(for {
-        device       <- dto.toDomain[D]
+        device         <- dto.toDomain[D](userId)
+        currentDevices <- DevicesRepositoryAlgebra[D].findByUniqueIdAndUser(dto.uniqueId, userId)
+        _ <- logD.info(
+          show"Removing existing devices with uniqueId ${dto.uniqueId} owned by $userId: ${currentDevices.map(_.device_id).mkString(", ")}") *>
+          DevicesRepositoryAlgebra[D].delete(currentDevices.map(_.device_id): _*)
         savedDevice  <- DevicesRepositoryAlgebra[D].create(device)
         now          <- TimeProvider[D].now
         apiKeyId     <- RandomProvider[D].randomFuuid

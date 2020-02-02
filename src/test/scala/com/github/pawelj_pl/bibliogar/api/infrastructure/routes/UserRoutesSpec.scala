@@ -6,15 +6,27 @@ import cats.effect.{ContextShift, IO}
 import cats.mtl.instances.all._
 import cats.mtl.MonadState
 import cats.syntax.either._
-import com.github.pawelj_pl.bibliogar.api.UserError
+import com.github.pawelj_pl.bibliogar.api.{CommonError, UserError}
 import com.github.pawelj_pl.bibliogar.api.constants.UserConstants
 import com.github.pawelj_pl.bibliogar.api.domain.user.{AuthData, SessionRepositoryAlgebra, TokenType, User, UserService, UserSession}
 import com.github.pawelj_pl.bibliogar.api.infrastructure.authorization.AuthInputs
 import com.github.pawelj_pl.bibliogar.api.infrastructure.config.Config.CookieConfig
-import com.github.pawelj_pl.bibliogar.api.infrastructure.dto.user.{ChangePasswordReq, Email, NickName, Password, ResetPasswordReq, SessionCheckResp, SessionDetails, UserDataReq, UserDataResp, UserLoginReq, UserRegistrationReq}
+import com.github.pawelj_pl.bibliogar.api.infrastructure.dto.user.{
+  ChangePasswordReq,
+  Email,
+  NickName,
+  Password,
+  ResetPasswordReq,
+  SessionCheckResp,
+  SessionDetails,
+  UserDataReq,
+  UserDataResp,
+  UserLoginReq,
+  UserRegistrationReq
+}
 import com.github.pawelj_pl.bibliogar.api.infrastructure.endpoints.UserEndpoints
 import com.github.pawelj_pl.bibliogar.api.infrastructure.http.ApiEndpoint.latestApiVersion
-import com.github.pawelj_pl.bibliogar.api.infrastructure.http.ErrorResponse
+import com.github.pawelj_pl.bibliogar.api.infrastructure.http.{ErrorResponse, PreconditionFailedReason}
 import com.github.pawelj_pl.bibliogar.api.testdoubles.domain.user.UserServiceStub
 import com.github.pawelj_pl.bibliogar.api.testdoubles.repositories.SessionRepositoryFake
 import com.olegpy.meow.hierarchy.deriveMonadState
@@ -200,7 +212,7 @@ class UserRoutesSpec extends WordSpec with Matchers with UserConstants {
   "Logout" should {
     "return 204, set invalid cookie and remove session" when {
       "user logged in" in {
-        val expectedCookie = ResponseCookie(name = CookieName, content = "invalid", maxAge = Some(0))
+        val expectedCookie = ResponseCookie(name = CookieName, content = "invalid", maxAge = Some(0), path = Some("/"))
         val initialState = TestState(
           sessionRepoState = SessionRepositoryFake.SessionRepositoryState(sessions = Set(ExampleUserSession))
         )
@@ -251,7 +263,7 @@ class UserRoutesSpec extends WordSpec with Matchers with UserConstants {
   }
 
   "Set user data" should {
-    val dto = UserDataReq(NickName(ExampleUser.nickName))
+    val dto = UserDataReq(None, NickName(ExampleUser.nickName))
     "update user data" when {
       "user logged in" in {
         val initialState = TestState()
@@ -261,6 +273,7 @@ class UserRoutesSpec extends WordSpec with Matchers with UserConstants {
         val result = routes.run(request).runA(initialState).unsafeRunSync()
         result.status shouldBe Status.Ok
         result.as[UserDataResp].runA(initialState).unsafeRunSync() shouldBe UserDataResp(ExampleUser.id,
+                                                                                         ExampleUser.updatedAt.toEpochMilli.toString,
                                                                                          ExampleUser.email,
                                                                                          ExampleUser.nickName)
       }
@@ -272,6 +285,23 @@ class UserRoutesSpec extends WordSpec with Matchers with UserConstants {
           .withEntity(dto)
         val result = routes.run(request).runA(initialState).unsafeRunSync()
         result.status shouldBe Status.Unauthorized
+      }
+    }
+    "return 412" when {
+      "version mismatch" in {
+        val initialState = TestState(
+          userServiceState = UserServiceStub.UserServiceState(
+            userOrError = CommonError.ResourceVersionDoesNotMatch("5", "2").asLeft[User]
+          )
+        )
+        val request = Request[TestEffect](Method.PUT, uri = ApiPrefix / "users" / "me" / "data")
+          .withEntity(dto)
+          .withHeaders(Header("X-Api-Key", "something"))
+        val result = routes.run(request).runA(initialState).unsafeRunSync()
+        result.status shouldBe Status.PreconditionFailed
+        result.as[ErrorResponse.PreconditionFailed].runA(initialState).unsafeRunSync() shouldBe ErrorResponse.PreconditionFailed(
+          "Attempting to update resource from version 2, but current version is 5",
+          Some(PreconditionFailedReason.ResourceErrorDoesNotMatch))
       }
     }
   }
@@ -324,8 +354,9 @@ class UserRoutesSpec extends WordSpec with Matchers with UserConstants {
         val s4 = UserSession(FUUID.fuuid("986e3548-07c3-43eb-b789-4ec21a27f054"), None, ExampleUser.id, TestCsrfToken, Now)
         val s5 = UserSession(FUUID.fuuid("986e3548-07c3-43eb-b789-4ec21a27f055"), None, ExampleId1, TestCsrfToken, Now)
         val initialState = TestState(
-          userServiceState = UserServiceStub.UserServiceState(authDataOrError =
-            UserError.UserNotActive(AuthData(ExampleUser.id, "someHash", confirmed = true, enabled = false, Now)).asLeft[AuthData]),
+          userServiceState = UserServiceStub.UserServiceState(
+            authDataOrError =
+              UserError.UserNotActive(AuthData(ExampleUser.id, "someHash", confirmed = true, enabled = false, Now)).asLeft[AuthData]),
           sessionRepoState = SessionRepositoryFake.SessionRepositoryState(sessions = Set(s1, s2, s3, s4, s5))
         )
         val request = Request[TestEffect](Method.POST, uri = ApiPrefix / "users" / "me" / "password")
@@ -343,7 +374,8 @@ class UserRoutesSpec extends WordSpec with Matchers with UserConstants {
           val s4 = UserSession(FUUID.fuuid("986e3548-07c3-43eb-b789-4ec21a27f054"), None, ExampleUser.id, TestCsrfToken, Now)
           val s5 = UserSession(FUUID.fuuid("986e3548-07c3-43eb-b789-4ec21a27f055"), None, ExampleId1, TestCsrfToken, Now)
           val initialState = TestState(
-            userServiceState = UserServiceStub.UserServiceState(authDataOrError = UserError.InvalidCredentials(ExampleUser.id).asLeft[AuthData]),
+            userServiceState =
+              UserServiceStub.UserServiceState(authDataOrError = UserError.InvalidCredentials(ExampleUser.id).asLeft[AuthData]),
             sessionRepoState = SessionRepositoryFake.SessionRepositoryState(sessions = Set(s1, s2, s3, s4, s5))
           )
           val request = Request[TestEffect](Method.POST, uri = ApiPrefix / "users" / "me" / "password")
@@ -450,8 +482,9 @@ class UserRoutesSpec extends WordSpec with Matchers with UserConstants {
         val s4 = UserSession(FUUID.fuuid("986e3548-07c3-43eb-b789-4ec21a27f054"), None, ExampleUser.id, TestCsrfToken, Now)
         val s5 = UserSession(FUUID.fuuid("986e3548-07c3-43eb-b789-4ec21a27f055"), None, ExampleId1, TestCsrfToken, Now)
         val initialState = TestState(
-          userServiceState = UserServiceStub.UserServiceState(authDataOrError =
-            UserError.UserNotActive(AuthData(ExampleUser.id, "someHash", confirmed = true, enabled = false, Now)).asLeft[AuthData]),
+          userServiceState = UserServiceStub.UserServiceState(
+            authDataOrError =
+              UserError.UserNotActive(AuthData(ExampleUser.id, "someHash", confirmed = true, enabled = false, Now)).asLeft[AuthData]),
           sessionRepoState = SessionRepositoryFake.SessionRepositoryState(sessions = Set(s1, s2, s3, s4, s5))
         )
         val request = Request[TestEffect](Method.POST, uri = ApiPrefix / "passwords" / token).withEntity(dto)

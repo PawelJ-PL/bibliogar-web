@@ -10,7 +10,7 @@ import com.github.pawelj_pl.bibliogar.api.domain.device.DevicesService
 import com.github.pawelj_pl.bibliogar.api.domain.user.{SessionRepositoryAlgebra, UserSession}
 import com.github.pawelj_pl.bibliogar.api.infrastructure.authorization.AuthInputs
 import com.github.pawelj_pl.bibliogar.api.infrastructure.dto.devices.{AppCompatibilityReq, DeviceRegistrationReq, DeviceRegistrationResp}
-import com.github.pawelj_pl.bibliogar.api.infrastructure.http.{ErrorResponse, ResponseUtils}
+import com.github.pawelj_pl.bibliogar.api.infrastructure.http.{ErrorResponse, PreconditionFailedReason, ResponseUtils}
 import org.http4s.HttpRoutes
 import org.log4s.getLogger
 import tapir.model.SetCookieValue
@@ -29,7 +29,8 @@ class DevicesRoutes[F[_]: Sync: ContextShift: Http4sServerOptions: DevicesServic
     DevicesService[F]
       .isAppCompatibleWithApi(dto.appVersion)
       .map(isCompatible =>
-        if (isCompatible) ((): Unit).asRight[ErrorResponse] else ErrorResponse.PreconditionFailed("Incompatible version").asLeft[Unit])
+        if (isCompatible) ((): Unit).asRight[ErrorResponse]
+        else ErrorResponse.PreconditionFailed("Incompatible version", Some(PreconditionFailedReason.IncompatibleAppVersion)).asLeft[Unit])
   }
 
   private def registerDevice(
@@ -41,7 +42,8 @@ class DevicesRoutes[F[_]: Sync: ContextShift: Http4sServerOptions: DevicesServic
         .registerDevice(session.userId, dto)
         .map {
           case (device, key) =>
-            (SetCookieValue("invalid", maxAge = Some(0)), DeviceRegistrationResp(device.device_id, key.apiKey)).asRight[ErrorResponse]
+            (SetCookieValue("invalid", maxAge = Some(0), path = Some("/")), DeviceRegistrationResp(device.device_id, key.apiKey))
+              .asRight[ErrorResponse]
         }
       _ <- SessionRepositoryAlgebra[F] deleteSession (session.sessionId)
     } yield resp
@@ -49,7 +51,7 @@ class DevicesRoutes[F[_]: Sync: ContextShift: Http4sServerOptions: DevicesServic
   private def unregisterDevice(session: UserSession): F[Either[ErrorResponse, Unit]] = session.apiKeyId match {
     case None =>
       logger.warn("Api key doesn't exist in session")
-      ErrorResponse.PreconditionFailed("No API key found in session").asLeft[Unit].pure[F].widen
+      ErrorResponse.PreconditionFailed("No API key found in session", None).asLeft[Unit].pure[F].widen
     case Some(keyId) =>
       emptyResponseOrError(DevicesService[F].unregisterDeviceAs(session.userId, keyId))
   }

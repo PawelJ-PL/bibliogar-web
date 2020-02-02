@@ -5,15 +5,16 @@ import cats.syntax.flatMap._
 import cats.syntax.functor._
 import com.github.pawelj_pl.bibliogar.api.domain.device.{Device, DeviceDescription}
 import com.github.pawelj_pl.bibliogar.api.infrastructure.utils.{RandomProvider, TimeProvider}
+import io.chrisdavenport.fuuid.FUUID
 import io.circe.{Decoder, Encoder}
 import io.circe.generic.semiauto.{deriveDecoder, deriveEncoder}
 
 final case class DeviceRegistrationReq(uniqueId: String, deviceDescription: DeviceDescription) {
-  def toDomain[F[_]: Monad: RandomProvider: TimeProvider]: F[Device] =
+  def toDomain[F[_]: Monad: RandomProvider: TimeProvider](owner: FUUID): F[Device] =
     for {
       deviceId <- RandomProvider[F].randomFuuid
       now      <- TimeProvider[F].now
-    } yield Device(deviceId, uniqueId, deviceDescription, now, now)
+    } yield Device(deviceId, owner, uniqueId, deviceDescription, now, now)
 }
 
 object DeviceRegistrationReq extends DeviceDescriptionImplicits {

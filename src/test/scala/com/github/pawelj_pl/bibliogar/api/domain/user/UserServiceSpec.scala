@@ -8,11 +8,12 @@ import cats.data.{Chain, StateT}
 import cats.effect.IO
 import cats.mtl.instances.all._
 import cats.mtl.MonadState
-import com.github.pawelj_pl.bibliogar.api.UserError
+import com.github.pawelj_pl.bibliogar.api.{CommonError, UserError}
 import com.github.pawelj_pl.bibliogar.api.constants.UserConstants
 import com.github.pawelj_pl.bibliogar.api.infrastructure.config.Config
 import com.github.pawelj_pl.bibliogar.api.infrastructure.dto.user.{ChangePasswordReq, Email, NickName, Password, UserDataReq, UserLoginReq, UserRegistrationReq}
 import com.github.pawelj_pl.bibliogar.api.infrastructure.utils.{Correspondence, CryptProvider, MessageComposer, RandomProvider, TimeProvider}
+import com.github.pawelj_pl.bibliogar.api.infrastructure.utils.timeSyntax._
 import com.github.pawelj_pl.bibliogar.api.testdoubles.repositories.{UserRepositoryFake, UserTokenRepositoryFake}
 import com.github.pawelj_pl.bibliogar.api.testdoubles.utils.{CorrespondenceMock, CryptProviderFake, MessageComposerMock, RandomProviderFake, TimeProviderFake}
 import com.olegpy.meow.hierarchy.deriveMonadState
@@ -215,7 +216,7 @@ class UserServiceSpec extends WordSpec with UserConstants with Matchers {
   }
 
   "Update user" should {
-    val Dto = UserDataReq(NickName("newNick"))
+    val Dto = UserDataReq(None, NickName("newNick"))
 
     "update and return user" when {
       "user exists" in {
@@ -224,19 +225,37 @@ class UserServiceSpec extends WordSpec with UserConstants with Matchers {
         )
         val (state, result) =
           instance.updateUser(ExampleUser.id, Dto).value.run(initialState).unsafeRunSync()
-        result shouldBe Some(ExampleUser.copy(nickName = "newNick"))
+        result shouldBe Right(ExampleUser.copy(nickName = "newNick"))
+        state.userRepoState shouldBe initialState.userRepoState.copy(users = Set(ExampleUser.copy(nickName = "newNick")))
+      }
+      "version match" in {
+        val initialState = TestState(
+          userRepoState = UserRepositoryFake.UserRepositoryState(users = Set(ExampleUser))
+        )
+        val (state, result) =
+          instance.updateUser(ExampleUser.id, Dto.copy(version = Some(ExampleUser.updatedAt.asVersion))).value.run(initialState).unsafeRunSync()
+        result shouldBe Right(ExampleUser.copy(nickName = "newNick"))
         state.userRepoState shouldBe initialState.userRepoState.copy(users = Set(ExampleUser.copy(nickName = "newNick")))
       }
     }
-    "return None" when {
+    "return Error" when {
       "user doesn't exist" in {
         val initialState = TestState(
           userRepoState = UserRepositoryFake.UserRepositoryState(users = Set.empty)
         )
         val (state, result) =
           instance.updateUser(ExampleUser.id, Dto).value.run(initialState).unsafeRunSync()
-        result shouldBe None
+        result shouldBe Left(UserError.UserIdNotFound(ExampleUser.id))
         state shouldBe initialState
+      }
+      "version mismatch" in {
+        val initialState = TestState(
+          userRepoState = UserRepositoryFake.UserRepositoryState(users = Set(ExampleUser))
+        )
+        val (state, result) =
+          instance.updateUser(ExampleUser.id, Dto.copy(version = Some("1"))).value.run(initialState).unsafeRunSync()
+        result shouldBe Left(CommonError.ResourceVersionDoesNotMatch(ExampleUser.updatedAt.asVersion, "1"))
+        state.userRepoState shouldBe initialState.userRepoState
       }
     }
   }

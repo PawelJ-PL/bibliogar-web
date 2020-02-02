@@ -12,7 +12,7 @@ import com.github.pawelj_pl.bibliogar.api.infrastructure.dto.devices.DeviceRegis
 import com.vdurmont.semver4j.Semver
 import io.chrisdavenport.fuuid.FUUID
 
-object DevicesServiceStub extends DeviceConstants with UserConstants {
+object DevicesServiceStub extends UserConstants with DeviceConstants {
   final case class DevicesServiceState(
     isAppCompatible: Boolean = true,
     device: Device = ExampleDevice,
