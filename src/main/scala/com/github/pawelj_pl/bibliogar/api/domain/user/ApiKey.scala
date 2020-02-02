@@ -2,7 +2,7 @@ package com.github.pawelj_pl.bibliogar.api.domain.user
 
 import java.time.Instant
 
-import cats.Functor
+import cats.{Functor, Show}
 import cats.syntax.functor._
 import com.github.pawelj_pl.bibliogar.api.infrastructure.utils.TimeProvider
 import enumeratum._
@@ -32,4 +32,6 @@ case object KeyType extends Enum[KeyType] {
   case object User extends KeyType
 
   val values = findValues
+
+  implicit val show: Show[KeyType] = Show.fromToString
 }

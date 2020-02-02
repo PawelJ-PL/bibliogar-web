@@ -6,10 +6,13 @@ import java.time.temporal.TemporalAmount
 import cats.~>
 import cats.data.{EitherT, OptionT}
 import cats.effect.Sync
+import cats.instances.string._
 import cats.syntax.apply._
 import cats.syntax.bifunctor._
+import cats.syntax.eq._
 import cats.syntax.functor._
-import com.github.pawelj_pl.bibliogar.api.UserError
+import com.github.pawelj_pl.bibliogar.api.{CommonError, UserError}
+import com.github.pawelj_pl.bibliogar.api.UserError.UserIdNotFound
 import com.github.pawelj_pl.bibliogar.api.infrastructure.config.Config
 import com.github.pawelj_pl.bibliogar.api.infrastructure.dto.user.{ChangePasswordReq, UserDataReq, UserLoginReq, UserRegistrationReq}
 import com.github.pawelj_pl.bibliogar.api.infrastructure.utils.{
@@ -29,7 +32,7 @@ trait UserService[F[_]] {
   def confirmRegistration(token: String): EitherT[F, UserError, User]
   def verifyCredentials(credentials: UserLoginReq): EitherT[F, UserError, User]
   def getUser(userId: FUUID): OptionT[F, User]
-  def updateUser(userId: FUUID, dto: UserDataReq): OptionT[F, User]
+  def updateUser(userId: FUUID, dto: UserDataReq): EitherT[F, UserError, User]
   def changePassword(dto: ChangePasswordReq, userId: FUUID): EitherT[F, UserError, AuthData]
   def requestPasswordReset(email: String): OptionT[F, UserToken]
   def resetPassword(token: String, newPassword: String): EitherT[F, UserError, AuthData]
@@ -109,10 +112,18 @@ object UserService {
 
       override def getUser(userId: FUUID): OptionT[F, User] = UserRepositoryAlgebra[D].findUserById(userId).mapK(dbToF)
 
-      override def updateUser(userId: FUUID, dto: UserDataReq): OptionT[F, User] =
+      override def updateUser(userId: FUUID, dto: UserDataReq): EitherT[F, UserError, User] =
         (for {
-          savedUser   <- UserRepositoryAlgebra[D].findUserById(userId)
-          updatedUser <- UserRepositoryAlgebra[D].update(savedUser.copy(nickName = dto.nickName.value))
+          savedUser <- UserRepositoryAlgebra[D].findUserById(userId).toRight(UserError.UserIdNotFound(userId)).leftWiden[UserError]
+          _ <- EitherT.cond(
+            dto.version.forall(v => v === savedUser.updatedAt.asVersion),
+            (),
+            CommonError.ResourceVersionDoesNotMatch(savedUser.updatedAt.asVersion, dto.version.getOrElse(""))
+          )
+          updatedUser <- UserRepositoryAlgebra[D]
+            .update(savedUser.copy(nickName = dto.nickName.value))
+            .toRight(UserIdNotFound(userId))
+            .leftWiden[UserError]
         } yield updatedUser).mapK(dbToF)
 
       override def changePassword(dto: ChangePasswordReq, userId: FUUID): EitherT[F, UserError, AuthData] =

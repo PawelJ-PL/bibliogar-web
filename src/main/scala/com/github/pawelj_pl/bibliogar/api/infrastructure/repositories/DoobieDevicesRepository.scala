@@ -21,12 +21,18 @@ class DoobieDevicesRepository(implicit timeProvider: TimeProvider[DB]) extends D
   override def findById(deviceId: FUUID): OptionT[DB, Device] =
     OptionT(run(quote(devices.filter(_.device_id == lift(deviceId)))).map(_.headOption))
 
-  override def delete(deviceId: FUUID): DB[Unit] =
+  override def delete(deviceIds: FUUID*): DB[Unit] =
     run {
       quote {
-        devices.filter(_.device_id == lift(deviceId)).delete
+        devices.filter(d => liftQuery(deviceIds).contains(d.device_id)).delete
       }
     }.void
+
+  override def findByUniqueIdAndUser(uniqueId: String, ownerId: FUUID): DB[List[Device]] = run {
+    quote {
+      devices.filter(d => d.uniqueId == lift(uniqueId) && d.ownerId == lift(ownerId))
+    }
+  }
 
   private val devices = quote {
     querySchema[Device](

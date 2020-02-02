@@ -121,6 +121,14 @@ databaseChangeLog:
                   constraints:
                     primaryKey: true
               - column:
+                  name: owner_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_user
+                    deleteCascade: true
+                    references: users(user_id)
+              - column:
                   name: unique_id
                   type: varchar
               - column:
@@ -142,6 +150,11 @@ databaseChangeLog:
                  type: timestamptz
                  constraints:
                    nullable: false
+
+        - addUniqueConstraint:
+            constraintName: device_unique_id_and_user_constraint
+            tableName: devices
+            columnNames: owner_id, unique_id
 
         - createTable:
             tableName: api_keys

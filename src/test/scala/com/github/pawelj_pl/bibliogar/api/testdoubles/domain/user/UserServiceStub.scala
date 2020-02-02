@@ -30,8 +30,7 @@ object UserServiceStub extends UserConstants {
 
     override def getUser(userId: FUUID): OptionT[F, User] = OptionT(S.get.map(_.maybeUser))
 
-    override def updateUser(userId: FUUID, dto: UserDataReq): OptionT[F, User] =
-      OptionT(S.get.map(_.maybeUser.map(u => u.copy(nickName = dto.nickName.value))))
+    override def updateUser(userId: FUUID, dto: UserDataReq): EitherT[F, UserError, User] = EitherT(S.get.map(_.userOrError))
 
     override def changePassword(dto: ChangePasswordReq, userId: FUUID): EitherT[F, UserError, AuthData] =
       EitherT(S.get.map(_.authDataOrError))

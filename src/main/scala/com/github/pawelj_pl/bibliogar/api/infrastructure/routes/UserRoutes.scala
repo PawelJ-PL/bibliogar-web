@@ -62,7 +62,7 @@ class UserRoutes[F[_]: Sync: ContextShift: Http4sServerOptions: UserService: Ses
   private def logout(userSession: UserSession): F[Either[ErrorResponse, SetCookieValue]] =
     SessionRepositoryAlgebra[F]
       .deleteSession(userSession.sessionId)
-      .map(_ => SetCookieValue("invalid", maxAge = Some(0)).asRight[ErrorResponse])
+      .map(_ => SetCookieValue("invalid", maxAge = Some(0), path = Some("/")).asRight[ErrorResponse])
 
   private def checkCurrentSession(auth: AuthInputs): F[Either[Unit, SessionCheckResp]] =
     EitherT(authToSession(auth))
@@ -80,7 +80,7 @@ class UserRoutes[F[_]: Sync: ContextShift: Http4sServerOptions: UserService: Ses
   private def setUserData(session: UserSession, req: UserDataReq): F[Either[ErrorResponse, UserDataResp]] =
     UserService[F]
       .updateUser(session.userId, req)
-      .toRight(ErrorResponse.NotFound("User not found"): ErrorResponse)
+      .leftMap(userErrorToResponse)
       .map(UserDataResp.fromDomain)
       .value
 

@@ -1,6 +1,7 @@
 package com.github.pawelj_pl.bibliogar.api.infrastructure.http
 
 import cats.syntax.functor._
+import enumeratum._
 import io.circe.{Decoder, Encoder}
 import io.circe.generic.semiauto.{deriveDecoder, deriveEncoder}
 import io.circe.syntax._
@@ -46,7 +47,7 @@ object ErrorResponse {
     implicit val decoder: Decoder[UnprocessableEntity] = deriveDecoder[UnprocessableEntity]
   }
 
-  final case class PreconditionFailed(message: String) extends ErrorResponse
+  final case class PreconditionFailed(message: String, reason: Option[PreconditionFailedReason]) extends ErrorResponse
   object PreconditionFailed {
     implicit val encoder: Encoder[PreconditionFailed] = deriveEncoder[PreconditionFailed]
     implicit val decoder: Decoder[PreconditionFailed] = deriveDecoder[PreconditionFailed]
@@ -72,4 +73,15 @@ object ErrorResponse {
       Decoder[UnprocessableEntity].widen,
       Decoder[PreconditionFailed].widen
     ).reduceLeft(_ or _)
+}
+
+sealed trait PreconditionFailedReason extends EnumEntry
+
+object PreconditionFailedReason extends Enum[PreconditionFailedReason] with CirceEnum[PreconditionFailedReason] {
+  val values = findValues
+
+  case object ResourceErrorDoesNotMatch extends PreconditionFailedReason
+  case object InvalidApiKeyType extends PreconditionFailedReason
+  case object NotAssignedApiKey extends PreconditionFailedReason
+  case object IncompatibleAppVersion extends PreconditionFailedReason
 }

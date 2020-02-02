@@ -62,7 +62,15 @@ class DevicesServiceSpec extends WordSpec with Matchers with UserConstants with 
   "Register device" should {
     val dto = DeviceRegistrationReq(ExampleDevice.uniqueId, ExampleDevice.deviceDescription)
     "create and return device and API key" in {
-      val initialState = TestState()
+      val d1 = ExampleDevice.copy(device_id = ExampleId1)
+      val d2 = ExampleDevice.copy(device_id = ExampleId2, ownerId = ExampleId3)
+      val d3 = ExampleDevice.copy(device_id = ExampleId4, uniqueId = "otherId")
+      val d4 = ExampleDevice.copy(device_id = ExampleId5)
+      val initialState = TestState(
+        devicesRepoState = DevicesRepositoryFake.DevicesRepositoryState(
+          devices = Set(d1, d2, d3, d4)
+        )
+      )
       val (state, result) = instance.registerDevice(ExampleUser.id, dto).run(initialState).unsafeRunSync()
       val expectedDevice = ExampleDevice.copy(device_id = FirstRandomUuid)
       val expectedKey = ApiKey(
@@ -78,7 +86,7 @@ class DevicesServiceSpec extends WordSpec with Matchers with UserConstants with 
         Now.plusSeconds(1)
       )
       result shouldBe (expectedDevice, expectedKey)
-      state.devicesRepoState shouldBe initialState.devicesRepoState.copy(devices = Set(expectedDevice))
+      state.devicesRepoState shouldBe initialState.devicesRepoState.copy(devices = Set(expectedDevice, d2, d3))
       state.apiKeyRepoState shouldBe initialState.apiKeyRepoState.copy(keys = Set(expectedKey))
     }
   }

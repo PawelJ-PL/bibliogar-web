@@ -45,7 +45,7 @@ object DevicesEndpoint extends ApiEndpoint with SecuredEndpoint {
       .in(jsonBody[DeviceRegistrationReq].example(ExampleDeviceRegistrationReq))
       .out(setCookie("session")
         .description("Expired cookie with session ID")
-        .example(SetCookieValue("invalid", maxAge = Some(0))))
+        .example(SetCookieValue("invalid", maxAge = Some(0), path = Some("/"))))
       .out(jsonBody[DeviceRegistrationResp].example(DeviceRegistrationResp(FUUID.fuuid("b24766de-26b2-4a45-bdff-3458d2ac53af"), "abc123")))
       .errorOut(BadRequestOrUnauthorizedResp)
 

@@ -2,6 +2,7 @@ package com.github.pawelj_pl.bibliogar.api.domain.user
 
 import java.time.Instant
 
+import cats.Show
 import io.chrisdavenport.fuuid.FUUID
 import enumeratum._
 
@@ -14,4 +15,6 @@ case object TokenType extends Enum[TokenType] with CirceEnum[TokenType] {
   case object PasswordReset extends TokenType
 
   val values = findValues
+
+  implicit val show: Show[TokenType] = Show.fromToString
 }

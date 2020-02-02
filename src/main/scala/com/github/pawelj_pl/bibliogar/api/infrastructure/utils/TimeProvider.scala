@@ -3,7 +3,7 @@ package com.github.pawelj_pl.bibliogar.api.infrastructure.utils
 import java.time.temporal.TemporalAmount
 import java.time.{Duration, Instant}
 
-import cats.Functor
+import cats.{Functor, Show}
 import cats.effect.Clock
 import cats.syntax.functor._
 
@@ -27,4 +27,12 @@ object timeSyntax {
   implicit class TemporalDuration(duration: FiniteDuration) {
     def toTemporal: TemporalAmount = Duration.ofMillis(duration.toMillis)
   }
+
+  implicit class InstantVersion(instant: Instant) {
+    def asVersion: String = instant.toEpochMilli.toString
+  }
+}
+
+object timeInstances {
+  implicit val instantShow: Show[Instant] = Show.fromToString
 }

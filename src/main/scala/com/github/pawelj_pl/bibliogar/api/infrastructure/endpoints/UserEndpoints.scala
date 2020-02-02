@@ -30,6 +30,7 @@ class UserEndpoints(val cookieConfig: Config.CookieConfig) extends ApiEndpoint w
 
   private val exampleUserData = UserDataResp(
     FUUID.fuuid("b25e7694-297e-435d-bac3-99efcee4c49e"),
+    "123",
     "some@example.org",
     "Lion"
   )
@@ -116,7 +117,7 @@ class UserEndpoints(val cookieConfig: Config.CookieConfig) extends ApiEndpoint w
       .out(statusCode(StatusCodes.NoContent))
       .out(setCookie("session")
         .description("Expired cookie with session ID")
-        .example(SetCookieValue("invalid", maxAge = Some(0))))
+        .example(SetCookieValue("invalid", maxAge = Some(0), path = Some("/"))))
       .errorOut(UnauthorizedResp)
 
   val sessionCheckEndpoint: Endpoint[AuthInputs, Unit, SessionCheckResp, Nothing] =
@@ -146,9 +147,16 @@ class UserEndpoints(val cookieConfig: Config.CookieConfig) extends ApiEndpoint w
       .put
       .in(authenticationDetails)
       .in(mePrefix / "data")
-      .in(jsonBody[UserDataReq].example(UserDataReq(NickName("Lion"))))
+      .in(jsonBody[UserDataReq].example(UserDataReq(None, NickName("Lion"))))
       .out(jsonBody[UserDataResp].example(exampleUserData))
-      .errorOut(BadRequestOrUnauthorizedResp)
+      .errorOut(
+        oneOf[ErrorResponse](
+          statusMapping(StatusCodes.BadRequest, jsonBody[ErrorResponse.BadRequest].description(Default400Description)),
+          statusMapping(StatusCodes.Unauthorized,
+                        jsonBody[ErrorResponse.Unauthorized].example(UnauthorizedExample).description(Default401Description)),
+          statusMapping(StatusCodes.PreconditionFailed, jsonBody[ErrorResponse.PreconditionFailed].description("Resource version mismatch"))
+        )
+      )
 
   val changePasswordEndpoint: Endpoint[(AuthInputs, ChangePasswordReq), ErrorResponse, Unit, Nothing] =
     endpoint

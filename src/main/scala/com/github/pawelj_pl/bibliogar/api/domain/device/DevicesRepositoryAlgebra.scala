@@ -6,7 +6,8 @@ import io.chrisdavenport.fuuid.FUUID
 trait DevicesRepositoryAlgebra[F[_]] {
   def create(device: Device): F[Device]
   def findById(deviceId: FUUID): OptionT[F, Device]
-  def delete(deviceId: FUUID): F[Unit]
+  def findByUniqueIdAndUser(uniqueId: String, ownerId: FUUID): F[List[Device]]
+  def delete(deviceIds: FUUID*): F[Unit]
 }
 
 object DevicesRepositoryAlgebra {
