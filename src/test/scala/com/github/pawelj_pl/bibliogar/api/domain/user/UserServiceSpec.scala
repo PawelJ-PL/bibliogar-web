@@ -11,17 +11,37 @@ import cats.mtl.MonadState
 import com.github.pawelj_pl.bibliogar.api.{CommonError, UserError}
 import com.github.pawelj_pl.bibliogar.api.constants.UserConstants
 import com.github.pawelj_pl.bibliogar.api.infrastructure.config.Config
-import com.github.pawelj_pl.bibliogar.api.infrastructure.dto.user.{ChangePasswordReq, Email, NickName, Password, UserDataReq, UserLoginReq, UserRegistrationReq}
-import com.github.pawelj_pl.bibliogar.api.infrastructure.utils.{Correspondence, CryptProvider, MessageComposer, RandomProvider, TimeProvider}
-import com.github.pawelj_pl.bibliogar.api.infrastructure.utils.timeSyntax._
+import com.github.pawelj_pl.bibliogar.api.infrastructure.dto.user.{
+  ChangePasswordReq,
+  Email,
+  NickName,
+  Password,
+  UserDataReq,
+  UserLoginReq,
+  UserRegistrationReq
+}
+import com.github.pawelj_pl.bibliogar.api.infrastructure.utils.{
+  Correspondence,
+  CryptProvider,
+  MessageComposer,
+  RandomProvider,
+  TimeProvider
+}
 import com.github.pawelj_pl.bibliogar.api.testdoubles.repositories.{UserRepositoryFake, UserTokenRepositoryFake}
-import com.github.pawelj_pl.bibliogar.api.testdoubles.utils.{CorrespondenceMock, CryptProviderFake, MessageComposerMock, RandomProviderFake, TimeProviderFake}
+import com.github.pawelj_pl.bibliogar.api.testdoubles.utils.{
+  CorrespondenceMock,
+  CryptProviderFake,
+  MessageComposerMock,
+  RandomProviderFake,
+  TimeProviderFake
+}
 import com.olegpy.meow.hierarchy.deriveMonadState
-import org.scalatest.{Matchers, WordSpec}
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 
 import scala.concurrent.duration._
 
-class UserServiceSpec extends WordSpec with UserConstants with Matchers {
+class UserServiceSpec extends AnyWordSpec with UserConstants with Matchers {
   type TestEffect[A] = StateT[IO, TestState, A]
 
   case class TestState(
@@ -233,7 +253,11 @@ class UserServiceSpec extends WordSpec with UserConstants with Matchers {
           userRepoState = UserRepositoryFake.UserRepositoryState(users = Set(ExampleUser))
         )
         val (state, result) =
-          instance.updateUser(ExampleUser.id, Dto.copy(version = Some(ExampleUser.updatedAt.asVersion))).value.run(initialState).unsafeRunSync()
+          instance
+            .updateUser(ExampleUser.id, Dto.copy(version = Some(ExampleUser.version)))
+            .value
+            .run(initialState)
+            .unsafeRunSync()
         result shouldBe Right(ExampleUser.copy(nickName = "newNick"))
         state.userRepoState shouldBe initialState.userRepoState.copy(users = Set(ExampleUser.copy(nickName = "newNick")))
       }
@@ -254,7 +278,7 @@ class UserServiceSpec extends WordSpec with UserConstants with Matchers {
         )
         val (state, result) =
           instance.updateUser(ExampleUser.id, Dto.copy(version = Some("1"))).value.run(initialState).unsafeRunSync()
-        result shouldBe Left(CommonError.ResourceVersionDoesNotMatch(ExampleUser.updatedAt.asVersion, "1"))
+        result shouldBe Left(CommonError.ResourceVersionDoesNotMatch(ExampleUser.version, "1"))
         state.userRepoState shouldBe initialState.userRepoState
       }
     }

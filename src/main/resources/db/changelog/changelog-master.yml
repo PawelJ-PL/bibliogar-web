@@ -14,7 +14,7 @@ databaseChangeLog:
                     primaryKey: true
               - column:
                   name: email
-                  type: varchar(320)
+                  type: varchar
                   constraints:
                     nullable: false
                     unique: true
@@ -75,7 +75,7 @@ databaseChangeLog:
             columns:
               - column:
                   name: token
-                  type: varchar(64)
+                  type: varchar
                   constraints:
                     primaryKey: true
               - column:
@@ -88,7 +88,7 @@ databaseChangeLog:
                     references: users(user_id)
               - column:
                   name: type
-                  type: varchar(20)
+                  type: varchar
                   constraints:
                     nullable: false
               - column:
@@ -187,12 +187,12 @@ databaseChangeLog:
                     references: devices(device_id)
               - column:
                   name: key_type
-                  type: varchar(20)
+                  type: varchar
                   constraints:
                     nullable: false
               - column:
                   name: description
-                  type: varchar(255)
+                  type: varchar
               - column:
                   name: enabled
                   type: boolean
@@ -221,3 +221,55 @@ databaseChangeLog:
             columns:
               - column:
                   name: user_id
+
+        - createTable:
+            tableName: libraries
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  constraints:
+                    primaryKey: true
+              - column:
+                  name: owner_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_user
+                    deleteCascade: true
+                    references: users(user_id)
+              - column:
+                  name: name
+                  type: varchar
+                  constraints:
+                    nullable: false
+              - column:
+                  name: loan_duration_value
+                  type: smallint
+                  constraints:
+                    nullable: false
+              - column:
+                  name: loan_duration_unit
+                  type: varchar
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: timestamptz
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: timestamptz
+                  constraints:
+                    nullable: false
+
+        - sql:
+            dbms: postgresql
+            sql: "ALTER TABLE libraries ADD CONSTRAINT duration_unit_check CHECK (loan_duration_unit IN ('Day', 'Week', 'Month', 'Year'))"
+
+        - createIndex:
+            tableName: libraries
+            columns:
+              - column:
+                  name: owner_id

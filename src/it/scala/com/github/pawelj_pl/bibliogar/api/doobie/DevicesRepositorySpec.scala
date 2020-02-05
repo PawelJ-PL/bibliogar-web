@@ -5,17 +5,20 @@ import cats.syntax.apply._
 import com.github.pawelj_pl.bibliogar.api.domain.user.User
 import com.github.pawelj_pl.bibliogar.api.doobie.setup.{TestDatabase, TestImplicits}
 import com.github.pawelj_pl.bibliogar.api.infrastructure.repositories.{DoobieDevicesRepository, DoobieUserRepository}
-import com.github.pawelj_pl.bibliogar.api.itconstants.DeviceConstants
+import com.github.pawelj_pl.bibliogar.api.itconstants.{DeviceConstants, UserConstants}
 import doobie.implicits._
-import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpec}
+import org.scalatest.wordspec.AnyWordSpec
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.matchers.should.Matchers
 
 class DevicesRepositorySpec
-    extends WordSpec
+    extends AnyWordSpec
     with Matchers
     with BeforeAndAfterAll
     with TestDatabase
     with TestImplicits
-    with DeviceConstants {
+    with DeviceConstants
+    with UserConstants {
   private val transactor = tx[IO]
   private val repo = new DoobieDevicesRepository
   private val userRepo = new DoobieUserRepository

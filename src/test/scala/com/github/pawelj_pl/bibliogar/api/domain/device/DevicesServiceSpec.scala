@@ -15,9 +15,10 @@ import com.github.pawelj_pl.bibliogar.api.testdoubles.repositories.{ApiKeyReposi
 import com.github.pawelj_pl.bibliogar.api.testdoubles.utils.{RandomProviderFake, TimeProviderFake}
 import com.vdurmont.semver4j.Semver
 import com.olegpy.meow.hierarchy.deriveMonadState
-import org.scalatest.{Matchers, WordSpec}
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 
-class DevicesServiceSpec extends WordSpec with Matchers with UserConstants with DeviceConstants {
+class DevicesServiceSpec extends AnyWordSpec with Matchers with UserConstants with DeviceConstants {
   case class TestState(
     timeProviderState: TimeProviderFake.TimeProviderState = TimeProviderFake.TimeProviderState(),
     randomState: RandomProviderFake.RandomState = RandomProviderFake.RandomState(),

@@ -14,6 +14,14 @@ sealed trait AppError extends Product with Serializable {
 
 sealed trait UserError extends AppError
 
+sealed trait CommonError extends UserError with LibraryError
+
+object CommonError {
+  final case class ResourceVersionDoesNotMatch(current: String, provided: String) extends CommonError {
+    override def message: String = show"Attempting to update resource from version $provided, but current version is $current"
+  }
+}
+
 object UserError {
   final case class EmailAlreadyRegistered(email: String) extends UserError {
     override def message: String = show"Email $email already registered"
@@ -68,10 +76,13 @@ object DeviceError {
   }
 }
 
-sealed trait CommonError extends UserError
+sealed trait LibraryError extends AppError
 
-object CommonError {
-  final case class ResourceVersionDoesNotMatch(current: String, provided: String) extends CommonError {
-    override def message: String = show"Attempting to update resource from version $provided, but current version is $current"
+object LibraryError {
+  final case class LibraryNotOwnedByUser(libraryId: FUUID, userId: FUUID) extends LibraryError {
+    override def message: String = show"Library $libraryId is not owned by user $userId"
+  }
+  final case class LibraryIdNotFound(libraryId: FUUID) extends LibraryError {
+    override def message: String = show"Library with id $libraryId not found"
   }
 }

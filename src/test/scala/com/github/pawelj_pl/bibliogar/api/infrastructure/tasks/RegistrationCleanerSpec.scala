@@ -17,11 +17,12 @@ import com.github.pawelj_pl.bibliogar.api.testdoubles.utils.TimeProviderFake
 import com.olegpy.meow.hierarchy.deriveMonadState
 import cron4s.Cron
 import io.chrisdavenport.fuuid.FUUID
-import org.scalatest.{Matchers, WordSpec}
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 
 import scala.concurrent.duration._
 
-class RegistrationCleanerSpec extends WordSpec with Matchers with UserConstants {
+class RegistrationCleanerSpec extends AnyWordSpec with Matchers with UserConstants {
   case class TestState(
     timeProviderState: TimeProviderFake.TimeProviderState = TimeProviderFake.TimeProviderState(),
     userRepoState: UserRepositoryFake.UserRepositoryState = UserRepositoryFake.UserRepositoryState())

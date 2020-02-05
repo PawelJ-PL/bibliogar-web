@@ -6,16 +6,25 @@ import cats.effect.IO
 import cats.mtl.instances.all._
 import cats.mtl.MonadState
 import com.github.pawelj_pl.bibliogar.api.constants.UserConstants
-import com.github.pawelj_pl.bibliogar.api.domain.user.{ApiKey, ApiKeyRepositoryAlgebra, AuthData, KeyType, SessionRepositoryAlgebra, UserRepositoryAlgebra, UserSession}
+import com.github.pawelj_pl.bibliogar.api.domain.user.{
+  ApiKey,
+  ApiKeyRepositoryAlgebra,
+  AuthData,
+  KeyType,
+  SessionRepositoryAlgebra,
+  UserRepositoryAlgebra,
+  UserSession
+}
 import com.github.pawelj_pl.bibliogar.api.infrastructure.http.ErrorResponse.Unauthorized
 import com.github.pawelj_pl.bibliogar.api.infrastructure.utils.{RandomProvider, TimeProvider}
 import com.github.pawelj_pl.bibliogar.api.testdoubles.repositories.{ApiKeyRepositoryFake, SessionRepositoryFake, UserRepositoryFake}
 import com.github.pawelj_pl.bibliogar.api.testdoubles.utils.{RandomProviderFake, TimeProviderFake}
 import com.olegpy.meow.hierarchy.deriveMonadState
 import io.chrisdavenport.fuuid.FUUID
-import org.scalatest.{Matchers, WordSpec}
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 
-class AuthSpec extends WordSpec with Matchers with UserConstants {
+class AuthSpec extends AnyWordSpec with Matchers with UserConstants {
   case class TestState(
     sessionRepoState: SessionRepositoryFake.SessionRepositoryState = SessionRepositoryFake.SessionRepositoryState(),
     apiKeyRepoState: ApiKeyRepositoryFake.ApiKeyRepositoryState = ApiKeyRepositoryFake.ApiKeyRepositoryState(),

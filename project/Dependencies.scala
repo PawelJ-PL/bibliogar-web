@@ -107,7 +107,8 @@ object Dependencies {
     )
 
     val test = Seq(
-      "org.scalatest" %% "scalatest" % "3.0.8" % "it, test"
+      "org.scalatest" %% "scalatest" % "3.1.0" % "it, test",
+      "com.softwaremill.diffx" %% "diffx-scalatest" % "0.3.17" % "it, test"
     )
 
     Seq(
