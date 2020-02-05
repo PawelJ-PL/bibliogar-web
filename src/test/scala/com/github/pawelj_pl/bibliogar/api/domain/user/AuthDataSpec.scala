@@ -2,9 +2,10 @@ package com.github.pawelj_pl.bibliogar.api.domain.user
 
 import cats.effect.IO
 import com.github.pawelj_pl.bibliogar.api.constants.UserConstants
-import org.scalatest.{Matchers, WordSpec}
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 
-class AuthDataSpec extends WordSpec with Matchers with UserConstants {
+class AuthDataSpec extends AnyWordSpec with Matchers with UserConstants {
   "isActive" should {
     "return true" when {
       "all properties are valid" in {

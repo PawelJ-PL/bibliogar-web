@@ -6,13 +6,14 @@ import cats.syntax.reducible._
 import cats.syntax.semigroupk._
 import cats.~>
 import com.github.pawelj_pl.bibliogar.api.domain.device.DevicesService
+import com.github.pawelj_pl.bibliogar.api.domain.library.LibraryService
 import com.github.pawelj_pl.bibliogar.api.domain.user.{UserService, UserSession}
 import com.github.pawelj_pl.bibliogar.api.infrastructure.authorization.{Auth, AuthInputs}
 import com.github.pawelj_pl.bibliogar.api.infrastructure.config.Config
-import com.github.pawelj_pl.bibliogar.api.infrastructure.endpoints.{DevicesEndpoint, UserEndpoints}
+import com.github.pawelj_pl.bibliogar.api.infrastructure.endpoints.{DevicesEndpoint, LibraryEndpoints, UserEndpoints}
 import com.github.pawelj_pl.bibliogar.api.infrastructure.http.{ApiEndpoint, ErrorResponse}
-import com.github.pawelj_pl.bibliogar.api.infrastructure.repositories.{CachedSessionRepository, DoobieApiKeyRepository, DoobieDevicesRepository, DoobieUserRepository, DoobieUserTokenRepository}
-import com.github.pawelj_pl.bibliogar.api.infrastructure.routes.{DevicesRoutes, Router, UserRoutes}
+import com.github.pawelj_pl.bibliogar.api.infrastructure.repositories.{CachedSessionRepository, DoobieApiKeyRepository, DoobieDevicesRepository, DoobieLibraryRepository, DoobieUserRepository, DoobieUserTokenRepository}
+import com.github.pawelj_pl.bibliogar.api.infrastructure.routes.{DevicesRoutes, LibraryRoutes, Router, UserRoutes}
 import com.github.pawelj_pl.bibliogar.api.infrastructure.swagger.SwaggerRoutes
 import com.github.pawelj_pl.bibliogar.api.infrastructure.utils.{Correspondence, CryptProvider, MessageComposer, RandomProvider, TimeProvider}
 import io.chrisdavenport.fuuid.FUUID
@@ -80,21 +81,24 @@ class BibliogarApp[F[_]: Sync: ContextShift: ConcurrentEffect: Timer: Mode](bloc
   private implicit val sessionRepo: CachedSessionRepository[F] = new CachedSessionRepository[F](appConfig.auth.cookie)
   private implicit val apiKeyRepo: DoobieApiKeyRepository = new DoobieApiKeyRepository
   private implicit val devicesRepo: DoobieDevicesRepository = new DoobieDevicesRepository
+  private implicit val libraryRepo: DoobieLibraryRepository = new DoobieLibraryRepository
 
   private implicit val userService: UserService[F] = UserService.withDb[F, DB](appConfig.auth)
   private implicit val devicesService: DevicesService[F] = DevicesService.withDb[F, DB](appConfig.mobileApp)
+  private implicit val libraryService: LibraryService[F] = LibraryService.withDb[F, DB]()
 
   private val authToSession: AuthInputs => F[Either[ErrorResponse, UserSession]] =
     Auth.create[F, DB].authToSession
 
   private val userEndpoints: UserEndpoints = new UserEndpoints(appConfig.auth.cookie)
 
-  private val endpoints: NonEmptyList[ApiEndpoint] = NonEmptyList.of(userEndpoints, DevicesEndpoint)
+  private val endpoints: NonEmptyList[ApiEndpoint] = NonEmptyList.of(userEndpoints, DevicesEndpoint, LibraryEndpoints)
 
   private val userRoutes: UserRoutes[F] = new UserRoutes[F](userEndpoints, authToSession)
   private val devicesRoutes: DevicesRoutes[F] = new DevicesRoutes[F](authToSession)
+  private val libraryRoutes: LibraryRoutes[F] = new LibraryRoutes[F](authToSession)
 
-  private val routes: NonEmptyList[Router[F]] = NonEmptyList.of(userRoutes, devicesRoutes)
+  private val routes: NonEmptyList[Router[F]] = NonEmptyList.of(userRoutes, devicesRoutes, libraryRoutes)
   private val swaggerRoutes: SwaggerRoutes[F] = new SwaggerRoutes[F](blocker, endpoints)
   private val apiRoutes = routes.reduceMapK(_.routes)
 

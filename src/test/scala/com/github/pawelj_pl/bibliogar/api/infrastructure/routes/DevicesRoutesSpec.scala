@@ -21,11 +21,12 @@ import org.http4s.circe.CirceEntityEncoder._
 import org.http4s.circe.CirceEntityDecoder._
 import org.http4s.{Header, HttpApp, Method, Request, ResponseCookie, Status, Uri}
 import org.http4s.implicits._
-import org.scalatest.{Matchers, WordSpec}
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 
 import scala.concurrent.ExecutionContext
 
-class DevicesRoutesSpec extends WordSpec with Matchers with UserConstants with DeviceConstants {
+class DevicesRoutesSpec extends AnyWordSpec with Matchers with UserConstants with DeviceConstants {
   case class TestState(
     devicesServiceState: DevicesServiceStub.DevicesServiceState = DevicesServiceStub.DevicesServiceState(),
     sessionRepoState: SessionRepositoryFake.SessionRepositoryState = SessionRepositoryFake.SessionRepositoryState())

@@ -9,9 +9,10 @@ import com.github.pawelj_pl.bibliogar.api.constants.UserConstants
 import com.github.pawelj_pl.bibliogar.api.infrastructure.utils.TimeProvider
 import com.github.pawelj_pl.bibliogar.api.testdoubles.utils.TimeProviderFake
 import com.olegpy.meow.hierarchy.deriveMonadState
-import org.scalatest.{Matchers, WordSpec}
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 
-class ApiKeySpec extends WordSpec with Matchers with UserConstants {
+class ApiKeySpec extends AnyWordSpec with Matchers with UserConstants {
   case class TestState(timeProviderState: TimeProviderFake.TimeProviderState = TimeProviderFake.TimeProviderState())
   type TestEffect[A] = StateT[IO, TestState, A]
 
@@ -25,7 +26,16 @@ class ApiKeySpec extends WordSpec with Matchers with UserConstants {
         result shouldBe true
       }
       "validTo is in future" in {
-        val input = ApiKey(ExampleId1, "123", ExampleUser.id, None, KeyType.User, Some("Some key"), enabled = true, Some(Now.plusSeconds(60)), Now, Now)
+        val input = ApiKey(ExampleId1,
+                           "123",
+                           ExampleUser.id,
+                           None,
+                           KeyType.User,
+                           Some("Some key"),
+                           enabled = true,
+                           Some(Now.plusSeconds(60)),
+                           Now,
+                           Now)
         val result = input.isActive[TestEffect].runA(TestState()).unsafeRunSync()
         result shouldBe true
       }
@@ -37,7 +47,16 @@ class ApiKeySpec extends WordSpec with Matchers with UserConstants {
         result shouldBe false
       }
       "validTo is in past" in {
-        val input = ApiKey(ExampleId1, "123", ExampleUser.id, None, KeyType.User, Some("Some key"), enabled = true, Some(Now.minusSeconds(60)), Now, Now)
+        val input = ApiKey(ExampleId1,
+                           "123",
+                           ExampleUser.id,
+                           None,
+                           KeyType.User,
+                           Some("Some key"),
+                           enabled = true,
+                           Some(Now.minusSeconds(60)),
+                           Now,
+                           Now)
         val result = input.isActive[TestEffect].runA(TestState()).unsafeRunSync()
         result shouldBe false
       }

@@ -8,9 +8,11 @@ import com.github.pawelj_pl.bibliogar.api.doobie.setup.{TestDatabase, TestImplic
 import com.github.pawelj_pl.bibliogar.api.infrastructure.repositories.DoobieUserRepository
 import com.github.pawelj_pl.bibliogar.api.itconstants.UserConstants
 import doobie.implicits._
-import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpec}
+import org.scalatest.wordspec.AnyWordSpec
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.matchers.should.Matchers
 
-class UserRepositorySpec extends WordSpec with Matchers with BeforeAndAfterAll with TestDatabase with UserConstants with TestImplicits {
+class UserRepositorySpec extends AnyWordSpec with Matchers with BeforeAndAfterAll with TestDatabase with UserConstants with TestImplicits {
   private val repo = new DoobieUserRepository
   private val transactor = tx[IO]
 

@@ -36,12 +36,13 @@ import org.http4s.circe.CirceEntityDecoder._
 import org.http4s.implicits._
 import org.http4s.util.CaseInsensitiveString
 import org.http4s.{Header, HttpApp, Method, Request, ResponseCookie, Status, Uri}
-import org.scalatest.{Matchers, WordSpec}
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 
-class UserRoutesSpec extends WordSpec with Matchers with UserConstants {
+class UserRoutesSpec extends AnyWordSpec with Matchers with UserConstants {
   case class TestState(
     userServiceState: UserServiceStub.UserServiceState = UserServiceStub.UserServiceState(),
     sessionRepoState: SessionRepositoryFake.SessionRepositoryState = SessionRepositoryFake.SessionRepositoryState())

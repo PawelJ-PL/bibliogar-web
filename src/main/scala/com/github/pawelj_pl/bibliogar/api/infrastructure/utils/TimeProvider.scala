@@ -27,10 +27,6 @@ object timeSyntax {
   implicit class TemporalDuration(duration: FiniteDuration) {
     def toTemporal: TemporalAmount = Duration.ofMillis(duration.toMillis)
   }
-
-  implicit class InstantVersion(instant: Instant) {
-    def asVersion: String = instant.toEpochMilli.toString
-  }
 }
 
 object timeInstances {

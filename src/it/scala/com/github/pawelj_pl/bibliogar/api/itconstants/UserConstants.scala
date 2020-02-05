@@ -1,10 +1,9 @@
 package com.github.pawelj_pl.bibliogar.api.itconstants
 
 import com.github.pawelj_pl.bibliogar.api.domain.user.{ApiKey, AuthData, KeyType, TokenType, User, UserToken}
-import io.chrisdavenport.fuuid.FUUID
 
-trait UserConstants extends CommonConstants {
-  final val TestUserId = FUUID.fuuid("f430bb72-74ae-431e-96e5-b47c527be9d5")
+trait UserConstants extends CommonConstants with ResourcesIdentifiers {
+
   final val TestUserEmail = "some@example.org"
   final val TestNickname = "Dog"
   final val ExampleUser = User(TestUserId, TestUserEmail, TestNickname, Now, Now)
@@ -15,8 +14,7 @@ trait UserConstants extends CommonConstants {
   final val TestTokenValue = "someToken"
   final val ExampleUserToken = UserToken(TestTokenValue, TestUserId, TokenType.Registration, Now, Now)
 
-  final val TestKeyId = FUUID.fuuid("34c44100-48c8-4d53-a82f-698bfbce6741")
   final val TestKeyValue = "secretKey"
   final val TestKeyDescription = "Some API key"
-  final val ExampleApiKey = ApiKey(TestKeyId, TestKeyValue, TestUserId, None, KeyType.User, Some(TestKeyDescription), enabled = true, None, Now, Now)
+  final val ExampleApiKey = ApiKey(TestApiKeyId, TestKeyValue, TestUserId, None, KeyType.User, Some(TestKeyDescription), enabled = true, None, Now, Now)
 }

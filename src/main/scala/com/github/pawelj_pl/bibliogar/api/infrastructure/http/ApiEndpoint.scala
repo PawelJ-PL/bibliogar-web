@@ -16,14 +16,23 @@ trait ApiEndpoint extends ErrorHandler {
 
   final val UnauthorizedExample = ErrorResponse.Unauthorized("Authentication failed")
 
-  final val UnauthorizedResp: EndpointOutput.OneOf[ErrorResponse] = oneOf[ErrorResponse](
-    statusMapping(StatusCodes.Unauthorized,
-                  jsonBody[ErrorResponse.Unauthorized].example(UnauthorizedExample).description(Default401Description)))
-  final val BadRequestOrUnauthorizedResp: EndpointOutput.OneOf[ErrorResponse] = oneOf(
-    statusMapping(StatusCodes.BadRequest, jsonBody[ErrorResponse.BadRequest].description(Default400Description)),
-    statusMapping(StatusCodes.Unauthorized,
-                  jsonBody[ErrorResponse.Unauthorized].example(UnauthorizedExample).description(Default401Description))
-  )
+  final val UnauthorizedResp: EndpointOutput.OneOf[ErrorResponse] = oneOf[ErrorResponse](StatusMappings.unauthorized)
+  final val BadRequestOrUnauthorizedResp: EndpointOutput.OneOf[ErrorResponse] =
+    oneOf(StatusMappings.badRequest, StatusMappings.unauthorized)
+
+  object StatusMappings {
+    val unauthorized: EndpointOutput.StatusMapping[ErrorResponse.Unauthorized] = statusMapping(
+      StatusCodes.Unauthorized,
+      jsonBody[ErrorResponse.Unauthorized].example(UnauthorizedExample).description(Default401Description))
+    val badRequest: EndpointOutput.StatusMapping[ErrorResponse.BadRequest] =
+      statusMapping(StatusCodes.BadRequest, jsonBody[ErrorResponse.BadRequest].description(Default400Description))
+    def preconditionFailed(
+      description: String = "Resource version mismatch"
+    ): EndpointOutput.StatusMapping[ErrorResponse.PreconditionFailed] =
+      statusMapping(StatusCodes.PreconditionFailed, jsonBody[ErrorResponse.PreconditionFailed].description(description))
+    def forbidden(description: String = "Operation is forbidden"): EndpointOutput.StatusMapping[ErrorResponse.Forbidden] =
+      statusMapping(StatusCodes.Forbidden, jsonBody[ErrorResponse.Forbidden].description(description))
+  }
 }
 
 object ApiEndpoint {

@@ -6,12 +6,10 @@ import java.time.temporal.TemporalAmount
 import cats.~>
 import cats.data.{EitherT, OptionT}
 import cats.effect.Sync
-import cats.instances.string._
 import cats.syntax.apply._
 import cats.syntax.bifunctor._
-import cats.syntax.eq._
 import cats.syntax.functor._
-import com.github.pawelj_pl.bibliogar.api.{CommonError, UserError}
+import com.github.pawelj_pl.bibliogar.api.UserError
 import com.github.pawelj_pl.bibliogar.api.UserError.UserIdNotFound
 import com.github.pawelj_pl.bibliogar.api.infrastructure.config.Config
 import com.github.pawelj_pl.bibliogar.api.infrastructure.dto.user.{ChangePasswordReq, UserDataReq, UserLoginReq, UserRegistrationReq}
@@ -22,6 +20,7 @@ import com.github.pawelj_pl.bibliogar.api.infrastructure.utils.{
   RandomProvider,
   TimeProvider
 }
+import com.github.pawelj_pl.bibliogar.api.infrastructure.utils.Misc.resourceVersion.syntax._
 import com.github.pawelj_pl.bibliogar.api.infrastructure.utils.timeSyntax._
 import io.chrisdavenport.fuuid.FUUID
 import io.chrisdavenport.log4cats.Logger
@@ -115,11 +114,7 @@ object UserService {
       override def updateUser(userId: FUUID, dto: UserDataReq): EitherT[F, UserError, User] =
         (for {
           savedUser <- UserRepositoryAlgebra[D].findUserById(userId).toRight(UserError.UserIdNotFound(userId)).leftWiden[UserError]
-          _ <- EitherT.cond(
-            dto.version.forall(v => v === savedUser.updatedAt.asVersion),
-            (),
-            CommonError.ResourceVersionDoesNotMatch(savedUser.updatedAt.asVersion, dto.version.getOrElse(""))
-          )
+          _         <- dto.verifyOptVersion(savedUser.version)
           updatedUser <- UserRepositoryAlgebra[D]
             .update(savedUser.copy(nickName = dto.nickName.value))
             .toRight(UserIdNotFound(userId))
