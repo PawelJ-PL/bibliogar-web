@@ -24,8 +24,8 @@ import com.github.pawelj_pl.bibliogar.api.infrastructure.endpoints.UserEndpoints
 import com.github.pawelj_pl.bibliogar.api.infrastructure.http.{ErrorResponse, ResponseUtils}
 import org.http4s.HttpRoutes
 import org.log4s.getLogger
-import tapir.model.SetCookieValue
-import tapir.server.http4s._
+import sttp.model.CookieValueWithMeta
+import sttp.tapir.server.http4s._
 
 class UserRoutes[F[_]: Sync: ContextShift: Http4sServerOptions: UserService: SessionRepositoryAlgebra](
   userEndpoints: UserEndpoints,
@@ -42,15 +42,20 @@ class UserRoutes[F[_]: Sync: ContextShift: Http4sServerOptions: UserService: Ses
   private def signUpConfirmation(token: String): F[Either[ErrorResponse, UserDataResp]] =
     responseOrError(UserService[F].confirmRegistration(token), UserDataResp.fromDomain)
 
-  private def login(credentials: UserLoginReq): F[Either[ErrorResponse, (UserDataResp, SetCookieValue, String)]] =
+  private def login(credentials: UserLoginReq): F[Either[ErrorResponse, (UserDataResp, CookieValueWithMeta, String)]] =
     (for {
       user    <- UserService[F].verifyCredentials(credentials).leftMap(mapAuthErrorToErrorResponse)
       session <- EitherT.right[ErrorResponse](SessionRepositoryAlgebra[F].createFor(user.id, None))
-      cookieValue = SetCookieValue(session.sessionId.toString(),
-                                   maxAge = Some(cookieConfig.maxAge.toSeconds),
-                                   path = Some("/"),
-                                   secure = cookieConfig.secure,
-                                   httpOnly = cookieConfig.httpOnly)
+      cookieValue = CookieValueWithMeta(
+        session.sessionId.toString(),
+        maxAge = Some(cookieConfig.maxAge.toSeconds),
+        path = Some("/"),
+        secure = cookieConfig.secure,
+        httpOnly = cookieConfig.httpOnly,
+        expires = None,
+        domain = None,
+        otherDirectives = Map.empty
+      )
       csrfToken = session.csrfToken.toString()
     } yield (UserDataResp.fromDomain(user), cookieValue, csrfToken)).value
 
@@ -59,10 +64,20 @@ class UserRoutes[F[_]: Sync: ContextShift: Http4sServerOptions: UserService: Ses
     ErrorResponse.Unauthorized("Invalid credentials"): ErrorResponse
   }
 
-  private def logout(userSession: UserSession): F[Either[ErrorResponse, SetCookieValue]] =
+  private def logout(userSession: UserSession): F[Either[ErrorResponse, CookieValueWithMeta]] =
     SessionRepositoryAlgebra[F]
       .deleteSession(userSession.sessionId)
-      .map(_ => SetCookieValue("invalid", maxAge = Some(0), path = Some("/")).asRight[ErrorResponse])
+      .map(
+        _ =>
+          CookieValueWithMeta("invalid",
+                              maxAge = Some(0),
+                              path = Some("/"),
+                              expires = None,
+                              domain = None,
+                              secure = false,
+                              httpOnly = true,
+                              otherDirectives = Map.empty)
+            .asRight[ErrorResponse])
 
   private def checkCurrentSession(auth: AuthInputs): F[Either[Unit, SessionCheckResp]] =
     EitherT(authToSession(auth))

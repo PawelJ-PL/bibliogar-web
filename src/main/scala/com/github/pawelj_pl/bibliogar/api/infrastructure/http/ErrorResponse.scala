@@ -5,7 +5,7 @@ import enumeratum._
 import io.circe.{Decoder, Encoder}
 import io.circe.generic.semiauto.{deriveDecoder, deriveEncoder}
 import io.circe.syntax._
-import tapir.{Schema, SchemaFor, Validator}
+import sttp.tapir.{Schema, SchemaType, Validator}
 
 sealed trait ErrorResponse extends Product with Serializable {
   def message: String
@@ -81,7 +81,7 @@ sealed trait PreconditionFailedReason extends EnumEntry
 object PreconditionFailedReason extends Enum[PreconditionFailedReason] with CirceEnum[PreconditionFailedReason] {
   val values = findValues
 
-  implicit val tapirSchema: SchemaFor[PreconditionFailedReason] = SchemaFor(Schema.SString)
+  implicit val tapirSchema: Schema[PreconditionFailedReason] = Schema(SchemaType.SString)
   implicit val tapirValidator: Validator[PreconditionFailedReason] =
     Validator.enum(PreconditionFailedReason.values.toList, v => Some(v.entryName))
 

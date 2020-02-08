@@ -13,9 +13,9 @@ import org.http4s.{HttpRoutes, StaticFile}
 import org.http4s.dsl.Http4sDsl
 import org.http4s.headers.Location
 import org.http4s.implicits._
-import tapir.docs.openapi._
-import tapir.openapi.circe.yaml._
-import tapir.openapi.OpenAPI
+import sttp.tapir.docs.openapi._
+import sttp.tapir.openapi.circe.yaml._
+import sttp.tapir.openapi.OpenAPI
 
 class SwaggerRoutes[F[_]: Sync: ContextShift](blocker: Blocker, apiEndpoints: NonEmptyList[ApiEndpoint]) extends Http4sDsl[F] {
   private val doc: OpenAPI = apiEndpoints.reduceMap(_.endpoints).toOpenAPI("Bibliogar", ApiEndpoint.latestApiVersion)

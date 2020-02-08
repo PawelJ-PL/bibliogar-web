@@ -2,19 +2,14 @@ package com.github.pawelj_pl.bibliogar.api.infrastructure.endpoints
 
 import com.github.pawelj_pl.bibliogar.api.domain.library.LoanDurationUnit
 import com.github.pawelj_pl.bibliogar.api.infrastructure.authorization.{AuthInputs, SecuredEndpoint}
-import com.github.pawelj_pl.bibliogar.api.infrastructure.dto.library.{
-  DurationValue,
-  Implicits,
-  LibraryDataReq,
-  LibraryDataResp,
-  LibraryName
-}
+import com.github.pawelj_pl.bibliogar.api.infrastructure.dto.library.{DurationValue, Implicits, LibraryDataReq, LibraryDataResp, LibraryName}
 import com.github.pawelj_pl.bibliogar.api.infrastructure.http.{ApiEndpoint, ErrorResponse}
 import com.github.pawelj_pl.bibliogar.api.infrastructure.http.Implicits.Fuuid._
 import io.chrisdavenport.fuuid.FUUID
-import tapir._
-import tapir.json.circe._
-import tapir.model.StatusCodes
+import sttp.model.StatusCode
+import sttp.tapir._
+import sttp.tapir.json.circe._
+import sttp.tapir.codec.enumeratum._
 
 object LibraryEndpoints extends ApiEndpoint with SecuredEndpoint with Implicits {
   private val librariesPrefix = apiPrefix / "libraries"
@@ -69,7 +64,7 @@ object LibraryEndpoints extends ApiEndpoint with SecuredEndpoint with Implicits 
       .delete
       .in(authenticationDetails)
       .in(librariesPrefix / path[FUUID]("libraryId"))
-      .out(statusCode(StatusCodes.NoContent).description("Library removed"))
+      .out(statusCode(StatusCode.NoContent).description("Library removed"))
       .errorOut(
         oneOf(
           StatusMappings.unauthorized,

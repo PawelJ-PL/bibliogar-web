@@ -8,10 +8,10 @@ import com.github.pawelj_pl.bibliogar.api.infrastructure.http.Implicits.Fuuid._
 import com.github.pawelj_pl.bibliogar.api.infrastructure.http.Implicits.Semver._
 import com.vdurmont.semver4j.Semver
 import io.chrisdavenport.fuuid.FUUID
-import tapir._
-import tapir.Endpoint
-import tapir.json.circe._
-import tapir.model.{SetCookieValue, StatusCodes}
+import sttp.model.{CookieValueWithMeta, StatusCode}
+import sttp.tapir._
+import sttp.tapir.Endpoint
+import sttp.tapir.json.circe._
 
 object DevicesEndpoint extends ApiEndpoint with SecuredEndpoint {
   private val devicesPrefix = apiPrefix / "devices"
@@ -26,16 +26,16 @@ object DevicesEndpoint extends ApiEndpoint with SecuredEndpoint {
       .post
       .in(devicesPrefix / "compatibility")
       .in(jsonBody[AppCompatibilityReq].example(AppCompatibilityReq(new Semver("2.0.8"))))
-      .out(statusCode(StatusCodes.Ok))
+      .out(statusCode(StatusCode.Ok))
       .errorOut(
         oneOf[ErrorResponse](
-          statusMapping(StatusCodes.BadRequest, jsonBody[ErrorResponse.BadRequest].description(Default400Description)),
-          statusMapping(StatusCodes.PreconditionFailed, jsonBody[ErrorResponse.PreconditionFailed].description("Incompatible version"))
+          statusMapping(StatusCode.BadRequest, jsonBody[ErrorResponse.BadRequest].description(Default400Description)),
+          statusMapping(StatusCode.PreconditionFailed, jsonBody[ErrorResponse.PreconditionFailed].description("Incompatible version"))
         )
       )
 
   val registerDeviceEndpoint
-    : Endpoint[(AuthInputs, DeviceRegistrationReq), ErrorResponse, (SetCookieValue, DeviceRegistrationResp), Nothing] =
+    : Endpoint[(AuthInputs, DeviceRegistrationReq), ErrorResponse, (CookieValueWithMeta, DeviceRegistrationResp), Nothing] =
     endpoint
       .summary("Pair device with user")
       .tags(List("device"))
@@ -43,9 +43,18 @@ object DevicesEndpoint extends ApiEndpoint with SecuredEndpoint {
       .in(authenticationDetails)
       .in(devicesPrefix)
       .in(jsonBody[DeviceRegistrationReq].example(ExampleDeviceRegistrationReq))
-      .out(setCookie("session")
-        .description("Expired cookie with session ID")
-        .example(SetCookieValue("invalid", maxAge = Some(0), path = Some("/"))))
+      .out(
+        setCookie("session")
+          .description("Expired cookie with session ID")
+          .example(
+            CookieValueWithMeta("invalid",
+                                maxAge = Some(0),
+                                path = Some("/"),
+                                expires = None,
+                                domain = None,
+                                secure = true,
+                                httpOnly = true,
+                                otherDirectives = Map.empty)))
       .out(jsonBody[DeviceRegistrationResp].example(DeviceRegistrationResp(FUUID.fuuid("b24766de-26b2-4a45-bdff-3458d2ac53af"), "abc123")))
       .errorOut(BadRequestOrUnauthorizedResp)
 
@@ -56,11 +65,11 @@ object DevicesEndpoint extends ApiEndpoint with SecuredEndpoint {
       .delete
       .in(authenticationDetails)
       .in(devicesPrefix / "this")
-      .out(statusCode(StatusCodes.NoContent))
+      .out(statusCode(StatusCode.NoContent))
       .errorOut(
         oneOf[ErrorResponse](
-          statusMapping(StatusCodes.Unauthorized, jsonBody[ErrorResponse.Unauthorized].description(Default401Description)),
-          statusMapping(StatusCodes.PreconditionFailed, jsonBody[ErrorResponse.PreconditionFailed].description("No related device found"))
+          statusMapping(StatusCode.Unauthorized, jsonBody[ErrorResponse.Unauthorized].description(Default401Description)),
+          statusMapping(StatusCode.PreconditionFailed, jsonBody[ErrorResponse.PreconditionFailed].description("No related device found"))
         )
       )
 

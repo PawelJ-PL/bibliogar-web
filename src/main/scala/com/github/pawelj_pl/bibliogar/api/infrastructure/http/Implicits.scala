@@ -6,8 +6,8 @@ import com.github.pawelj_pl.bibliogar.api.infrastructure.utils.SemverWrapper.of
 import com.vdurmont.semver4j.Semver
 import io.chrisdavenport.fuuid.FUUID
 import io.circe.{Decoder, DecodingFailure, Encoder, HCursor}
-import tapir.Codec.PlainCodec
-import tapir.{Codec, DecodeResult, Schema, SchemaFor}
+import sttp.tapir.Codec.PlainCodec
+import sttp.tapir.{Codec, DecodeResult, Schema, SchemaType}
 
 object Implicits {
   object Fuuid {
@@ -19,7 +19,7 @@ object Implicits {
 
     implicit val fuuidCodec: PlainCodec[FUUID] = Codec.stringPlainCodecUtf8.mapDecode(decodeFuuid)(encodeFuuid)
 
-    implicit val schemaForFuuid: SchemaFor[FUUID] = SchemaFor(Schema.SString)
+    implicit val schemaForFuuid: Schema[FUUID] = Schema(SchemaType.SString)
   }
 
   object Semver {
@@ -37,6 +37,6 @@ object Implicits {
     }
     implicit val semverCodec: PlainCodec[Semver] = Codec.stringPlainCodecUtf8.mapDecode(decodeSemver)(_.getValue)
 
-    implicit val schemaForSemver: SchemaFor[Semver] = SchemaFor(Schema.SString)
+    implicit val schemaForSemver: Schema[Semver] = Schema(SchemaType.SString)
   }
 }

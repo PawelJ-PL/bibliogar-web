@@ -37,11 +37,12 @@ object Dependencies {
     )
 
     val tapir = Seq(
-      "com.softwaremill.tapir" %% "tapir-http4s-server",
-      "com.softwaremill.tapir" %% "tapir-openapi-docs",
-      "com.softwaremill.tapir" %% "tapir-openapi-circe-yaml",
-      "com.softwaremill.tapir" %% "tapir-json-circe"
-    ).map(_ % "0.11.9")
+      "com.softwaremill.sttp.tapir" %% "tapir-http4s-server",
+      "com.softwaremill.sttp.tapir" %% "tapir-openapi-docs",
+      "com.softwaremill.sttp.tapir" %% "tapir-openapi-circe-yaml",
+      "com.softwaremill.sttp.tapir" %% "tapir-json-circe",
+      "com.softwaremill.sttp.tapir" %% "tapir-enumeratum"
+    ).map(_ % "0.12.20")
 
     val circe = Seq(
       "io.circe" %% "circe-core",

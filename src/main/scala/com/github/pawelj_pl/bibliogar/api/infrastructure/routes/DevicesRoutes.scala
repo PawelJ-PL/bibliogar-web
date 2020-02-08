@@ -13,9 +13,9 @@ import com.github.pawelj_pl.bibliogar.api.infrastructure.dto.devices.{AppCompati
 import com.github.pawelj_pl.bibliogar.api.infrastructure.http.{ErrorResponse, PreconditionFailedReason, ResponseUtils}
 import org.http4s.HttpRoutes
 import org.log4s.getLogger
-import tapir.model.SetCookieValue
-import tapir.server.http4s.Http4sServerOptions
-import tapir.server.http4s._
+import sttp.model.CookieValueWithMeta
+import sttp.tapir.server.http4s.Http4sServerOptions
+import sttp.tapir.server.http4s._
 
 class DevicesRoutes[F[_]: Sync: ContextShift: Http4sServerOptions: DevicesService: SessionRepositoryAlgebra](
   authToSession: AuthInputs => F[Either[ErrorResponse, UserSession]])
@@ -36,13 +36,21 @@ class DevicesRoutes[F[_]: Sync: ContextShift: Http4sServerOptions: DevicesServic
   private def registerDevice(
     session: UserSession,
     dto: DeviceRegistrationReq
-  ): F[Either[ErrorResponse, (SetCookieValue, DeviceRegistrationResp)]] =
+  ): F[Either[ErrorResponse, (CookieValueWithMeta, DeviceRegistrationResp)]] =
     for {
       resp <- DevicesService[F]
         .registerDevice(session.userId, dto)
         .map {
           case (device, key) =>
-            (SetCookieValue("invalid", maxAge = Some(0), path = Some("/")), DeviceRegistrationResp(device.device_id, key.apiKey))
+            (CookieValueWithMeta("invalid",
+                                 maxAge = Some(0),
+                                 path = Some("/"),
+                                 expires = None,
+                                 domain = None,
+                                 secure = false,
+                                 httpOnly = true,
+                                 otherDirectives = Map.empty),
+             DeviceRegistrationResp(device.device_id, key.apiKey))
               .asRight[ErrorResponse]
         }
       _ <- SessionRepositoryAlgebra[F] deleteSession (session.sessionId)
