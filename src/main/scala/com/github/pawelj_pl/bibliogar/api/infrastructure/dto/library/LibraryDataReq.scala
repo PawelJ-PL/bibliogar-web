@@ -10,6 +10,7 @@ import io.chrisdavenport.fuuid.FUUID
 import io.circe.{Decoder, Encoder}
 import io.circe.generic.semiauto.deriveDecoder
 import io.circe.generic.semiauto.deriveEncoder
+import sttp.tapir.codec.enumeratum.TapirCodecEnumeratum
 
 final case class LibraryName(value: String) extends AnyVal
 final case class DurationValue(value: Int) extends AnyVal
@@ -26,7 +27,7 @@ final case class LibraryDataReq(
     } yield Library(id, userId, name.value, loanDurationValue.value, loanDurationUnit, now, now)
 }
 
-object LibraryDataReq extends LibraryNameImplicits with DurationValueImplicits with DurationUnitImplicits {
+object LibraryDataReq extends LibraryNameImplicits with DurationValueImplicits with TapirCodecEnumeratum {
   implicit val versionExtractor: VersionExtractor[LibraryDataReq] = VersionExtractor.of[LibraryDataReq](_.version)
   implicit val show: Show[LibraryDataReq] = Show.fromToString
 

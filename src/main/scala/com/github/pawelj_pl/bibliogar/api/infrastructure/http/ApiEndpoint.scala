@@ -1,8 +1,8 @@
 package com.github.pawelj_pl.bibliogar.api.infrastructure.http
 
-import tapir._
-import tapir.model.StatusCodes
-import tapir.json.circe._
+import sttp.model.StatusCode
+import sttp.tapir._
+import sttp.tapir.json.circe._
 
 trait ApiEndpoint extends ErrorHandler {
   import ApiEndpoint._
@@ -22,16 +22,16 @@ trait ApiEndpoint extends ErrorHandler {
 
   object StatusMappings {
     val unauthorized: EndpointOutput.StatusMapping[ErrorResponse.Unauthorized] = statusMapping(
-      StatusCodes.Unauthorized,
+      StatusCode.Unauthorized,
       jsonBody[ErrorResponse.Unauthorized].example(UnauthorizedExample).description(Default401Description))
     val badRequest: EndpointOutput.StatusMapping[ErrorResponse.BadRequest] =
-      statusMapping(StatusCodes.BadRequest, jsonBody[ErrorResponse.BadRequest].description(Default400Description))
+      statusMapping(StatusCode.BadRequest, jsonBody[ErrorResponse.BadRequest].description(Default400Description))
     def preconditionFailed(
       description: String = "Resource version mismatch"
     ): EndpointOutput.StatusMapping[ErrorResponse.PreconditionFailed] =
-      statusMapping(StatusCodes.PreconditionFailed, jsonBody[ErrorResponse.PreconditionFailed].description(description))
+      statusMapping(StatusCode.PreconditionFailed, jsonBody[ErrorResponse.PreconditionFailed].description(description))
     def forbidden(description: String = "Operation is forbidden"): EndpointOutput.StatusMapping[ErrorResponse.Forbidden] =
-      statusMapping(StatusCodes.Forbidden, jsonBody[ErrorResponse.Forbidden].description(description))
+      statusMapping(StatusCode.Forbidden, jsonBody[ErrorResponse.Forbidden].description(description))
   }
 }
 

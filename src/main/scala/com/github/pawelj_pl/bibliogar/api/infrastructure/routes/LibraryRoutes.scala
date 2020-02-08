@@ -9,8 +9,8 @@ import com.github.pawelj_pl.bibliogar.api.infrastructure.dto.library.{LibraryDat
 import com.github.pawelj_pl.bibliogar.api.infrastructure.http.{ErrorResponse, ResponseUtils}
 import io.chrisdavenport.fuuid.FUUID
 import org.http4s.HttpRoutes
-import tapir.server.http4s.Http4sServerOptions
-import tapir.server.http4s._
+import sttp.tapir.server.http4s.Http4sServerOptions
+import sttp.tapir.server.http4s._
 
 class LibraryRoutes[F[_]: Sync: ContextShift: Http4sServerOptions: LibraryService](
   authToSession: AuthInputs => F[Either[ErrorResponse, UserSession]])

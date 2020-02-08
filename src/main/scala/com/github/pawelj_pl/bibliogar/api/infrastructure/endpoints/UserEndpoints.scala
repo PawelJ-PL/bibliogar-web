@@ -19,10 +19,10 @@ import com.github.pawelj_pl.bibliogar.api.infrastructure.dto.user.{
 import com.github.pawelj_pl.bibliogar.api.infrastructure.http.{ApiEndpoint, ErrorResponse}
 import com.github.pawelj_pl.bibliogar.api.infrastructure.http.Implicits.Fuuid._
 import io.chrisdavenport.fuuid.FUUID
-import tapir._
-import tapir.Endpoint
-import tapir.json.circe._
-import tapir.model.{SetCookieValue, StatusCodes}
+import sttp.model.{CookieValueWithMeta, StatusCode}
+import sttp.tapir._
+import sttp.tapir.Endpoint
+import sttp.tapir.json.circe._
 
 class UserEndpoints(val cookieConfig: Config.CookieConfig) extends ApiEndpoint with SecuredEndpoint {
   private val usersPrefix = apiPrefix / "users"
@@ -44,16 +44,16 @@ class UserEndpoints(val cookieConfig: Config.CookieConfig) extends ApiEndpoint w
       .in(jsonBody[UserRegistrationReq]
         .description("User registration request")
         .example(UserRegistrationReq(Email("some@example.org"), NickName("Adam"), Password("password"))))
-      .out(statusCode(StatusCodes.NoContent))
+      .out(statusCode(StatusCode.NoContent))
       .errorOut(
         oneOf[ErrorResponse](
           statusMapping(
-            StatusCodes.Conflict,
+            StatusCode.Conflict,
             jsonBody[ErrorResponse.Conflict]
               .example(ErrorResponse.Conflict("Email already registered"))
               .description("User already registered")
           ),
-          statusMapping(StatusCodes.BadRequest, jsonBody[ErrorResponse.BadRequest].description(Default400Description))
+          statusMapping(StatusCode.BadRequest, jsonBody[ErrorResponse.BadRequest].description(Default400Description))
         )
       )
 
@@ -67,7 +67,7 @@ class UserEndpoints(val cookieConfig: Config.CookieConfig) extends ApiEndpoint w
       .errorOut(
         oneOf[ErrorResponse](
           statusMapping(
-            StatusCodes.NotFound,
+            StatusCode.NotFound,
             jsonBody[ErrorResponse.NotFound]
               .example(ErrorResponse.NotFound("Provided token is not valid"))
               .description("Provided token not found")
@@ -75,7 +75,7 @@ class UserEndpoints(val cookieConfig: Config.CookieConfig) extends ApiEndpoint w
         )
       )
 
-  val loginEndpoint: Endpoint[UserLoginReq, ErrorResponse, (UserDataResp, SetCookieValue, String), Nothing] =
+  val loginEndpoint: Endpoint[UserLoginReq, ErrorResponse, (UserDataResp, CookieValueWithMeta, String), Nothing] =
     endpoint
       .summary("Login")
       .tags(List("user"))
@@ -88,36 +88,49 @@ class UserEndpoints(val cookieConfig: Config.CookieConfig) extends ApiEndpoint w
       .out(
         setCookie("session")
           .description("Cookie with session ID")
-          .example(
-            SetCookieValue("ABC",
-                           maxAge = Some(cookieConfig.maxAge.toSeconds),
-                           path = Some("/"),
-                           secure = cookieConfig.secure,
-                           httpOnly = cookieConfig.httpOnly)))
+          .example(CookieValueWithMeta(
+            "ABC",
+            maxAge = Some(cookieConfig.maxAge.toSeconds),
+            path = Some("/"),
+            secure = cookieConfig.secure,
+            httpOnly = cookieConfig.httpOnly,
+            expires = None,
+            domain = None,
+            otherDirectives = Map.empty
+          )))
       .out(header[String]("X-Csrf-Token").description("CSRF token"))
       .errorOut(
         oneOf[ErrorResponse](
           statusMapping(
-            StatusCodes.Unauthorized,
+            StatusCode.Unauthorized,
             jsonBody[ErrorResponse.Unauthorized]
               .example(ErrorResponse.Unauthorized("Invalid credentials"))
               .description("Invalid username or password")
           ),
-          statusMapping(StatusCodes.BadRequest, jsonBody[ErrorResponse.BadRequest].description(Default400Description))
+          statusMapping(StatusCode.BadRequest, jsonBody[ErrorResponse.BadRequest].description(Default400Description))
         )
       )
 
-  val logoutEndpoint: Endpoint[AuthInputs, ErrorResponse, SetCookieValue, Nothing] =
+  val logoutEndpoint: Endpoint[AuthInputs, ErrorResponse, CookieValueWithMeta, Nothing] =
     endpoint
       .summary("Logout")
       .tags(List("user"))
       .post
       .in(authenticationDetails)
       .in(apiPrefix / "auth" / "logout")
-      .out(statusCode(StatusCodes.NoContent))
-      .out(setCookie("session")
-        .description("Expired cookie with session ID")
-        .example(SetCookieValue("invalid", maxAge = Some(0), path = Some("/"))))
+      .out(statusCode(StatusCode.NoContent))
+      .out(
+        setCookie("session")
+          .description("Expired cookie with session ID")
+          .example(
+            CookieValueWithMeta("invalid",
+                                maxAge = Some(0),
+                                path = Some("/"),
+                                expires = None,
+                                domain = None,
+                                secure = true,
+                                httpOnly = true,
+                                otherDirectives = Map.empty)))
       .errorOut(UnauthorizedResp)
 
   val sessionCheckEndpoint: Endpoint[AuthInputs, Unit, SessionCheckResp, Nothing] =
@@ -151,10 +164,10 @@ class UserEndpoints(val cookieConfig: Config.CookieConfig) extends ApiEndpoint w
       .out(jsonBody[UserDataResp].example(exampleUserData))
       .errorOut(
         oneOf[ErrorResponse](
-          statusMapping(StatusCodes.BadRequest, jsonBody[ErrorResponse.BadRequest].description(Default400Description)),
-          statusMapping(StatusCodes.Unauthorized,
+          statusMapping(StatusCode.BadRequest, jsonBody[ErrorResponse.BadRequest].description(Default400Description)),
+          statusMapping(StatusCode.Unauthorized,
                         jsonBody[ErrorResponse.Unauthorized].example(UnauthorizedExample).description(Default401Description)),
-          statusMapping(StatusCodes.PreconditionFailed, jsonBody[ErrorResponse.PreconditionFailed].description("Resource version mismatch"))
+          statusMapping(StatusCode.PreconditionFailed, jsonBody[ErrorResponse.PreconditionFailed].description("Resource version mismatch"))
         )
       )
 
@@ -166,13 +179,13 @@ class UserEndpoints(val cookieConfig: Config.CookieConfig) extends ApiEndpoint w
       .in(authenticationDetails)
       .in(mePrefix / "password")
       .in(jsonBody[ChangePasswordReq].example(ChangePasswordReq(Password("password"), Password("NeWpa$$w0rd"))))
-      .out(statusCode(StatusCodes.NoContent))
+      .out(statusCode(StatusCode.NoContent))
       .errorOut(
         oneOf(
-          statusMapping(StatusCodes.Unauthorized, jsonBody[ErrorResponse.Unauthorized].description("The password is invalid")),
-          statusMapping(StatusCodes.Forbidden, jsonBody[ErrorResponse.Forbidden].description("Operation is forbidden")),
-          statusMapping(StatusCodes.BadRequest, jsonBody[ErrorResponse.BadRequest].description("Invalid payload")),
-          statusMapping(StatusCodes.UnprocessableEntity,
+          statusMapping(StatusCode.Unauthorized, jsonBody[ErrorResponse.Unauthorized].description("The password is invalid")),
+          statusMapping(StatusCode.Forbidden, jsonBody[ErrorResponse.Forbidden].description("Operation is forbidden")),
+          statusMapping(StatusCode.BadRequest, jsonBody[ErrorResponse.BadRequest].description("Invalid payload")),
+          statusMapping(StatusCode.UnprocessableEntity,
                         jsonBody[ErrorResponse.UnprocessableEntity].description("Old and new passwords are equal"))
         )
       )
@@ -183,7 +196,7 @@ class UserEndpoints(val cookieConfig: Config.CookieConfig) extends ApiEndpoint w
       .tags(List("user"))
       .get
       .in(apiPrefix / "passwords" / path[String]("email").example(exampleUserData.email).description("Email"))
-      .out(statusCode(StatusCodes.NoContent))
+      .out(statusCode(StatusCode.NoContent))
 
   val resetPasswordEndpoint: Endpoint[(String, ResetPasswordReq), ErrorResponse, Unit, Nothing] =
     endpoint
@@ -192,11 +205,11 @@ class UserEndpoints(val cookieConfig: Config.CookieConfig) extends ApiEndpoint w
       .post
       .in(apiPrefix / "passwords" / path[String]("token").description("Reset password token"))
       .in(jsonBody[ResetPasswordReq])
-      .out(statusCode(StatusCodes.NoContent))
+      .out(statusCode(StatusCode.NoContent))
       .errorOut(
         oneOf(
-          statusMapping(StatusCodes.BadRequest, jsonBody[ErrorResponse.BadRequest].description(Default400Description)),
-          statusMapping(StatusCodes.NotFound, jsonBody[ErrorResponse.NotFound].description("Provided token not found"))
+          statusMapping(StatusCode.BadRequest, jsonBody[ErrorResponse.BadRequest].description(Default400Description)),
+          statusMapping(StatusCode.NotFound, jsonBody[ErrorResponse.NotFound].description("Provided token not found"))
         )
       )
 

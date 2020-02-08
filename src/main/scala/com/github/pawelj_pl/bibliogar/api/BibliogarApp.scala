@@ -11,57 +11,36 @@ import com.github.pawelj_pl.bibliogar.api.domain.user.{UserService, UserSession}
 import com.github.pawelj_pl.bibliogar.api.infrastructure.authorization.{Auth, AuthInputs}
 import com.github.pawelj_pl.bibliogar.api.infrastructure.config.Config
 import com.github.pawelj_pl.bibliogar.api.infrastructure.endpoints.{DevicesEndpoint, LibraryEndpoints, UserEndpoints}
-import com.github.pawelj_pl.bibliogar.api.infrastructure.http.{ApiEndpoint, ErrorResponse}
-import com.github.pawelj_pl.bibliogar.api.infrastructure.repositories.{CachedSessionRepository, DoobieApiKeyRepository, DoobieDevicesRepository, DoobieLibraryRepository, DoobieUserRepository, DoobieUserTokenRepository}
+import com.github.pawelj_pl.bibliogar.api.infrastructure.http.{ApiEndpoint, ErrorResponse, TapirErrorHandler}
+import com.github.pawelj_pl.bibliogar.api.infrastructure.repositories.{
+  CachedSessionRepository,
+  DoobieApiKeyRepository,
+  DoobieDevicesRepository,
+  DoobieLibraryRepository,
+  DoobieUserRepository,
+  DoobieUserTokenRepository
+}
 import com.github.pawelj_pl.bibliogar.api.infrastructure.routes.{DevicesRoutes, LibraryRoutes, Router, UserRoutes}
 import com.github.pawelj_pl.bibliogar.api.infrastructure.swagger.SwaggerRoutes
-import com.github.pawelj_pl.bibliogar.api.infrastructure.utils.{Correspondence, CryptProvider, MessageComposer, RandomProvider, TimeProvider}
+import com.github.pawelj_pl.bibliogar.api.infrastructure.utils.{
+  Correspondence,
+  CryptProvider,
+  MessageComposer,
+  RandomProvider,
+  TimeProvider
+}
 import io.chrisdavenport.fuuid.FUUID
-import org.http4s.{HttpApp, Request}
+import org.http4s.HttpApp
 import org.http4s.server.middleware.Logger
 import org.http4s.syntax.all._
-import org.log4s.getLogger
 import scalacache.Mode
 import scalacache.caffeine.CaffeineCache
-import tapir.json.circe._
-import tapir.{DecodeResult, Validator, jsonBody}
-import tapir.server.{DecodeFailureHandler, DecodeFailureHandling, ServerDefaults}
-import tapir.server.http4s.Http4sServerOptions
+import sttp.tapir.server.http4s.Http4sServerOptions
 
 class BibliogarApp[F[_]: Sync: ContextShift: ConcurrentEffect: Timer: Mode](blocker: Blocker, appConfig: Config)(implicit dbToF: DB ~> F) {
-  private[this] val logger = getLogger
-
-  private def failResponse(msg: String): DecodeFailureHandling =
-    DecodeFailureHandling.response(jsonBody[ErrorResponse])(ErrorResponse.BadRequest(msg))
-
-  private val handleDecodeFailure: DecodeFailureHandler[Request[F]] = (req, input, failure) => {
-    failure match {
-      case DecodeResult.Missing                        =>
-      case DecodeResult.Multiple(vs)                   => logger.warn(s"Decoding error multiple: $vs")
-      case DecodeResult.Error(_, error)                => logger.warn(s"Error during decoding input: ${error.getMessage}")
-      case DecodeResult.Mismatch(_, _)                 =>
-      case DecodeResult.InvalidValue(validationErrors) => logger.warn(s"Validation failed: $validationErrors")
-    }
-    ServerDefaults.decodeFailureHandlerUsingResponse(
-      (_, msg) => failResponse(msg),
-      badRequestOnPathFailureIfPathShapeMatches = true,
-      validationError =>
-        validationError.validator match {
-          case Validator.Min(value, _)           => s"Value ${validationError.invalidValue} is too small (min value should be $value)"
-          case Validator.Max(value, _)           => s"Value ${validationError.invalidValue} is too big (max value should be $value)"
-          case Validator.Pattern(value)          => s"Value ${validationError.invalidValue} doesn't match to pattern: $value"
-          case Validator.MinLength(value)        => s"Value ${validationError.invalidValue} is too short(min length $value)"
-          case Validator.MaxLength(value)        => s"Value ${validationError.invalidValue} is too long(max length $value)"
-          case Validator.MinSize(value)          => s"Value ${validationError.invalidValue} has not enough elements (at least $value required)"
-          case Validator.MaxSize(value)          => s"Value ${validationError.invalidValue} has to many elements (at most $value required)"
-          case Validator.Custom(_, message)      => message
-          case Validator.Enum(possibleValues, _) => s"Value ${validationError.invalidValue} is not one of: ${possibleValues.mkString(", ")}"
-      }
-    )(req, input, failure)
-  }
-
   private implicit val serverOptions: Http4sServerOptions[F] =
-    Http4sServerOptions.default.copy(blockingExecutionContext = blocker.blockingContext, decodeFailureHandler = handleDecodeFailure)
+    Http4sServerOptions.default
+      .copy(blockingExecutionContext = blocker.blockingContext, decodeFailureHandler = TapirErrorHandler.handleDecodeFailure)
 
   private implicit val clockD: Clock[DB] = Clock.create[DB]
   private implicit val clockF: Clock[F] = Clock.create[F]
