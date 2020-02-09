@@ -87,7 +87,7 @@ class DevicesRoutesSpec extends AnyWordSpec with Matchers with UserConstants wit
       val (state, result) = routes.run(request).run(initialState).unsafeRunSync()
       result.status shouldBe Status.Ok
       result.cookies.find(_.name == "session") shouldBe Some(
-        ResponseCookie(name = "session", content = "invalid", maxAge = Some(0), path = Some("/")))
+        ResponseCookie(name = "session", content = "invalid", maxAge = Some(0), path = Some("/"), httpOnly = true))
       result.as[DeviceRegistrationResp].runA(initialState).unsafeRunSync() shouldBe DeviceRegistrationResp(ExampleDevice.device_id,
                                                                                                            ExampleApiKey.apiKey)
       state.shouldBe(initialState.copy(sessionRepoState = SessionRepositoryFake.SessionRepositoryState(Set(otherSession))))

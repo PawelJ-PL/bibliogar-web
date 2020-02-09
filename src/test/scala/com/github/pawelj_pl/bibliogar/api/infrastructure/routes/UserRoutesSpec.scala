@@ -213,7 +213,7 @@ class UserRoutesSpec extends AnyWordSpec with Matchers with UserConstants {
   "Logout" should {
     "return 204, set invalid cookie and remove session" when {
       "user logged in" in {
-        val expectedCookie = ResponseCookie(name = CookieName, content = "invalid", maxAge = Some(0), path = Some("/"))
+        val expectedCookie = ResponseCookie(name = CookieName, content = "invalid", maxAge = Some(0), path = Some("/"), httpOnly = true)
         val initialState = TestState(
           sessionRepoState = SessionRepositoryFake.SessionRepositoryState(sessions = Set(ExampleUserSession))
         )
