@@ -6,6 +6,7 @@ import java.util.{Date, UUID}
 import doobie.quill.DoobieContext
 import io.chrisdavenport.fuuid.FUUID
 import io.getquill.SnakeCase
+import org.http4s.Uri
 
 trait BasePostgresRepository {
   val doobieContext = new DoobieContext.Postgres(SnakeCase)
@@ -28,5 +29,8 @@ trait BasePostgresRepository {
         quote(infix"$value < $other".as[Boolean])
       }
     }
+
+    implicit val encodeUri: MappedEncoding[Uri, String] = MappedEncoding[Uri, String](_.renderString)
+    implicit val decodeUri: MappedEncoding[String, Uri] = MappedEncoding[String, Uri](Uri.unsafeFromString)
   }
 }

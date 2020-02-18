@@ -19,8 +19,9 @@ object Dependencies {
     val http4s = Seq(
       "org.http4s" %% "http4s-blaze-server",
       "org.http4s" %% "http4s-dsl",
-      "org.http4s" %% "http4s-circe"
-    ).map(_ % "0.21.0-M5")
+      "org.http4s" %% "http4s-circe",
+      "org.http4s" %% "http4s-blaze-client"
+    ).map(_ % "0.21.1")
 
     val pureConfig = Seq(
       "com.github.pureconfig" %% "pureconfig"
@@ -48,8 +49,9 @@ object Dependencies {
       "io.circe" %% "circe-core",
       "io.circe" %% "circe-parser",
       "io.circe" %% "circe-generic",
-      "io.circe" %% "circe-generic-extras"
-    ).map(_ % "0.12.2")
+      "io.circe" %% "circe-generic-extras",
+      "io.circe" %% "circe-literal"
+    ).map(_ % "0.13.0")
 
     val database = Seq(
       "org.postgresql" % "postgresql" % "42.2.8",

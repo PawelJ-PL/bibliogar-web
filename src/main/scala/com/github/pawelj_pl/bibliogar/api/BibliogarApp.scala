@@ -5,22 +5,24 @@ import cats.effect.{Blocker, Clock, ConcurrentEffect, ContextShift, Sync, Timer}
 import cats.syntax.reducible._
 import cats.syntax.semigroupk._
 import cats.~>
+import com.github.pawelj_pl.bibliogar.api.domain.book.{BookService, IsbnService}
 import com.github.pawelj_pl.bibliogar.api.domain.device.DevicesService
 import com.github.pawelj_pl.bibliogar.api.domain.library.LibraryService
 import com.github.pawelj_pl.bibliogar.api.domain.user.{UserService, UserSession}
 import com.github.pawelj_pl.bibliogar.api.infrastructure.authorization.{Auth, AuthInputs}
 import com.github.pawelj_pl.bibliogar.api.infrastructure.config.Config
-import com.github.pawelj_pl.bibliogar.api.infrastructure.endpoints.{DevicesEndpoint, LibraryEndpoints, UserEndpoints}
+import com.github.pawelj_pl.bibliogar.api.infrastructure.endpoints.{BookEndpoints, DevicesEndpoint, LibraryEndpoints, UserEndpoints}
 import com.github.pawelj_pl.bibliogar.api.infrastructure.http.{ApiEndpoint, ErrorResponse, TapirErrorHandler}
 import com.github.pawelj_pl.bibliogar.api.infrastructure.repositories.{
   CachedSessionRepository,
   DoobieApiKeyRepository,
+  DoobieBookRepository,
   DoobieDevicesRepository,
   DoobieLibraryRepository,
   DoobieUserRepository,
   DoobieUserTokenRepository
 }
-import com.github.pawelj_pl.bibliogar.api.infrastructure.routes.{DevicesRoutes, LibraryRoutes, Router, UserRoutes}
+import com.github.pawelj_pl.bibliogar.api.infrastructure.routes.{BookRoutes, DevicesRoutes, LibraryRoutes, Router, UserRoutes}
 import com.github.pawelj_pl.bibliogar.api.infrastructure.swagger.SwaggerRoutes
 import com.github.pawelj_pl.bibliogar.api.infrastructure.utils.{
   Correspondence,
@@ -31,13 +33,20 @@ import com.github.pawelj_pl.bibliogar.api.infrastructure.utils.{
 }
 import io.chrisdavenport.fuuid.FUUID
 import org.http4s.HttpApp
+import org.http4s.client.Client
+import org.http4s.client.middleware.{Logger => ClientLogger}
 import org.http4s.server.middleware.Logger
 import org.http4s.syntax.all._
 import scalacache.Mode
 import scalacache.caffeine.CaffeineCache
 import sttp.tapir.server.http4s.Http4sServerOptions
 
-class BibliogarApp[F[_]: Sync: ContextShift: ConcurrentEffect: Timer: Mode](blocker: Blocker, appConfig: Config)(implicit dbToF: DB ~> F) {
+class BibliogarApp[F[_]: Sync: ContextShift: ConcurrentEffect: Timer: Mode](
+  blocker: Blocker,
+  appConfig: Config,
+  httpClient: Client[F]
+)(implicit dbToF: DB ~> F,
+  liftF: F ~> DB) {
   private implicit val serverOptions: Http4sServerOptions[F] =
     Http4sServerOptions.default
       .copy(blockingExecutionContext = blocker.blockingContext, decodeFailureHandler = TapirErrorHandler.handleDecodeFailure)
@@ -55,29 +64,35 @@ class BibliogarApp[F[_]: Sync: ContextShift: ConcurrentEffect: Timer: Mode](bloc
   implicit val caffeineSessionCache: CaffeineCache[UserSession] = CaffeineCache[UserSession]
   implicit val caffeineSessionToUserCache: CaffeineCache[Set[FUUID]] = CaffeineCache[Set[FUUID]]
 
+  private val loggedClient: Client[F] = ClientLogger(logHeaders = false, logBody = false)(httpClient)
+
   private implicit val userRepo: DoobieUserRepository = new DoobieUserRepository
   private implicit val userTokenRepo: DoobieUserTokenRepository = new DoobieUserTokenRepository
   private implicit val sessionRepo: CachedSessionRepository[F] = new CachedSessionRepository[F](appConfig.auth.cookie)
   private implicit val apiKeyRepo: DoobieApiKeyRepository = new DoobieApiKeyRepository
   private implicit val devicesRepo: DoobieDevicesRepository = new DoobieDevicesRepository
   private implicit val libraryRepo: DoobieLibraryRepository = new DoobieLibraryRepository
+  private implicit val bookRepo: DoobieBookRepository = new DoobieBookRepository
 
   private implicit val userService: UserService[F] = UserService.withDb[F, DB](appConfig.auth)
   private implicit val devicesService: DevicesService[F] = DevicesService.withDb[F, DB](appConfig.mobileApp)
   private implicit val libraryService: LibraryService[F] = LibraryService.withDb[F, DB]()
+  private implicit val isbnService: IsbnService[F] = IsbnService.instance(loggedClient)
+  private implicit val bookService: BookService[F] = BookService.withDb[F, DB]()
 
   private val authToSession: AuthInputs => F[Either[ErrorResponse, UserSession]] =
     Auth.create[F, DB].authToSession
 
   private val userEndpoints: UserEndpoints = new UserEndpoints(appConfig.auth.cookie)
 
-  private val endpoints: NonEmptyList[ApiEndpoint] = NonEmptyList.of(userEndpoints, DevicesEndpoint, LibraryEndpoints)
+  private val endpoints: NonEmptyList[ApiEndpoint] = NonEmptyList.of(userEndpoints, DevicesEndpoint, LibraryEndpoints, BookEndpoints)
 
   private val userRoutes: UserRoutes[F] = new UserRoutes[F](userEndpoints, authToSession)
   private val devicesRoutes: DevicesRoutes[F] = new DevicesRoutes[F](authToSession)
   private val libraryRoutes: LibraryRoutes[F] = new LibraryRoutes[F](authToSession)
+  private val bookRoutes: BookRoutes[F] = new BookRoutes[F](authToSession)
 
-  private val routes: NonEmptyList[Router[F]] = NonEmptyList.of(userRoutes, devicesRoutes, libraryRoutes)
+  private val routes: NonEmptyList[Router[F]] = NonEmptyList.of(userRoutes, devicesRoutes, libraryRoutes, bookRoutes)
   private val swaggerRoutes: SwaggerRoutes[F] = new SwaggerRoutes[F](blocker, endpoints)
   private val apiRoutes = routes.reduceMapK(_.routes)
 

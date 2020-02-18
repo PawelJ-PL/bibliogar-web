@@ -14,4 +14,8 @@ trait CommonConstants {
   final val ExampleId5 = FUUID.fuuid("520df5d6-3c1c-4328-bd43-5e5d28b1c014")
   final val ExampleId6 = FUUID.fuuid("68740d74-e630-471c-959f-885ad8eee32e")
   final val ExampleId7 = FUUID.fuuid("798eecad-fa33-4f0c-bba9-44b3b9e78f8d")
+  final val ExampleId8 = FUUID.fuuid("0ccabab2-510e-43aa-9147-04e885e2ba35")
+  final val ExampleId9 = FUUID.fuuid("a73abdc6-7942-457c-9932-002b91317e4c")
+  final val ExampleId10 = FUUID.fuuid("579b722e-9662-4ee3-8b39-601005f358f0")
+  final val ExampleId11 = FUUID.fuuid("7a60008c-2f6c-422c-9327-e9dd0b3d4565")
 }
