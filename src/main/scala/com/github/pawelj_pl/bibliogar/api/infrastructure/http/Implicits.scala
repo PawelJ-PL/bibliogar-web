@@ -5,9 +5,11 @@ import com.github.pawelj_pl.bibliogar.api.infrastructure.utils.SemverWrapper
 import com.github.pawelj_pl.bibliogar.api.infrastructure.utils.SemverWrapper.of
 import com.vdurmont.semver4j.Semver
 import io.chrisdavenport.fuuid.FUUID
+import io.circe.syntax._
 import io.circe.{Decoder, DecodingFailure, Encoder, HCursor}
+import org.http4s.Uri
 import sttp.tapir.Codec.PlainCodec
-import sttp.tapir.{Codec, DecodeResult, Schema, SchemaType}
+import sttp.tapir.{Codec, DecodeResult, Schema, SchemaType, Validator}
 
 object Implicits {
   object Fuuid {
@@ -38,5 +40,14 @@ object Implicits {
     implicit val semverCodec: PlainCodec[Semver] = Codec.stringPlainCodecUtf8.mapDecode(decodeSemver)(_.getValue)
 
     implicit val schemaForSemver: Schema[Semver] = Schema(SchemaType.SString)
+  }
+
+  object Http4sUri {
+    implicit val uriDecoder: Decoder[Uri] = Decoder[String].emap(Uri.fromString(_).leftMap(_.toString))
+    implicit val uriEncoder: Encoder[Uri] = Encoder.instance(_.renderString.asJson)
+
+    implicit val schemaForUri: Schema[Uri] = Schema(SchemaType.SString)
+    implicit val tapirValidatorForUri: Validator[Uri] =
+      Validator.custom[String](uri => Uri.fromString(uri).isRight, "Not valid Uri").contramap(_.renderString)
   }
 }

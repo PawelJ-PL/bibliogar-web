@@ -32,6 +32,8 @@ trait ApiEndpoint extends ErrorHandler {
       statusMapping(StatusCode.PreconditionFailed, jsonBody[ErrorResponse.PreconditionFailed].description(description))
     def forbidden(description: String = "Operation is forbidden"): EndpointOutput.StatusMapping[ErrorResponse.Forbidden] =
       statusMapping(StatusCode.Forbidden, jsonBody[ErrorResponse.Forbidden].description(description))
+    def notFound(description: String): EndpointOutput.StatusMapping[ErrorResponse.NotFound] =
+      statusMapping(StatusCode.NotFound, jsonBody[ErrorResponse.NotFound].description(description))
   }
 }
 

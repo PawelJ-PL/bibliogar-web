@@ -1,27 +1,43 @@
 package com.github.pawelj_pl.bibliogar.api
 
-import cats.effect.{Blocker, ExitCode, IO, IOApp, Resource}
+import java.util.concurrent.Executors
+
+import cats.effect.{Async, Blocker, ExitCode, IO, IOApp, Resource}
 import cats.~>
 import com.github.pawelj_pl.bibliogar.api.infrastructure.config.Config
 import com.github.pawelj_pl.bibliogar.api.infrastructure.database.Database
 import com.github.pawelj_pl.bibliogar.api.infrastructure.tasks.Scheduler
 import doobie.implicits._
+import org.http4s.client.blaze.BlazeClientBuilder
 import org.http4s.server.blaze.BlazeServerBuilder
 import scalacache.CatsEffect.modes._
 
+import scala.concurrent.ExecutionContext
+
 object Application extends IOApp {
+
   def serverResource: Resource[IO, Unit] =
     for {
       config     <- Config.load[IO]
       _          <- Resource.liftF(Database.migration[IO](config.database))
       blocker    <- Blocker[IO]
       transactor <- Database.transactor[IO](config.database)
+      nbExecutionContext <- Resource.make(
+        IO(ExecutionContext.fromExecutorService(Executors.newCachedThreadPool()))
+      )(
+        ec => IO(ec.shutdown())
+      )
       dbTransaction = new (DB ~> IO) {
         override def apply[A](fa: DB[A]): IO[A] = fa.transact(transactor)
       }
+      liftF = new (IO ~> DB) {
+        override def apply[A](fa: IO[A]): DB[A] = Async[DB].liftIO(fa)
+      }
+      httpClient <- BlazeClientBuilder[IO](nbExecutionContext).resource
       app = {
         implicit val dbToIO: DB ~> IO = dbTransaction
-        new BibliogarApp[IO](blocker, config)
+        implicit val IoToDb: IO ~> DB = liftF
+        new BibliogarApp[IO](blocker, config, httpClient)
       }
       scheduler = {
         implicit val dbToIO: DB ~> IO = dbTransaction

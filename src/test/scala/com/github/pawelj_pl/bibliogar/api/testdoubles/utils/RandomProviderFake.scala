@@ -2,13 +2,15 @@ package com.github.pawelj_pl.bibliogar.api.testdoubles.utils
 
 import java.util.UUID
 
-import cats.Monad
+import cats.{Applicative, Monad}
 import cats.mtl.MonadState
 import cats.syntax.flatMap._
 import cats.syntax.functor._
 import com.github.pawelj_pl.bibliogar.api.infrastructure.utils.RandomProvider
 import io.chrisdavenport.fuuid.FUUID
 import tsec.common.SecureRandomId
+
+import scala.annotation.tailrec
 
 object RandomProviderFake {
   case class RandomState(actualRandomUuid: UUID = UUID.fromString("1c3aea3c-956d-467a-aba3-51e9e0000000"), actualRandomId: Int = 123)
@@ -31,5 +33,24 @@ object RandomProviderFake {
       val incrementedString = parts.toSeq.dropRight(1).mkString("-") + "-" + incrementedLast
       UUID.fromString(incrementedString)
     }
+  }
+
+  def withFixedValues[F[_]: Applicative](string: String, uuid: FUUID): RandomProvider[F] = new RandomProvider[F] {
+    override def secureRandomString(size: Int): F[SecureRandomId] = {
+      Applicative[F].pure(SecureRandomId(alignString(string, size)))
+    }
+
+    @tailrec
+    def alignString(initial: String, expectedSize: Int): String = {
+      if (initial.length == expectedSize) {
+        initial
+      } else if (initial.length > expectedSize) {
+        initial.slice(0, expectedSize)
+      } else {
+        alignString(initial + initial, expectedSize)
+      }
+    }
+
+    override def randomFuuid: F[FUUID] = Applicative[F].pure(uuid)
   }
 }

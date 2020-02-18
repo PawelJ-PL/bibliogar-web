@@ -2,7 +2,7 @@ package com.github.pawelj_pl.bibliogar.api.testdoubles.utils
 
 import java.time.Instant
 
-import cats.Monad
+import cats.{Applicative, Monad}
 import cats.mtl.MonadState
 import cats.syntax.flatMap._
 import cats.syntax.functor._
@@ -18,5 +18,11 @@ object TimeProviderFake extends UserConstants {
       S.modify(state => state.copy(actualTick = state.actualTick + 1000L)).flatMap(_ => S.get.map(state => state.actualTick))
 
     override def now: F[Instant] = time.map(Instant.ofEpochMilli)
+  }
+
+  def withFixedValue[F[_]: Applicative](value: Instant): TimeProvider[F] = new TimeProvider[F] {
+    override def time: F[Long] = Applicative[F].pure(value.toEpochMilli)
+
+    override def now: F[Instant] = Applicative[F].pure(value)
   }
 }

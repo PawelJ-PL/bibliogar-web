@@ -273,3 +273,74 @@ databaseChangeLog:
             columns:
               - column:
                   name: owner_id
+
+        - createTable:
+            tableName: books
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  constraints:
+                    primaryKey: true
+              - column:
+                  name: isbn
+                  type: varchar
+                  constraints:
+                    nullable: false
+              - column:
+                  name: title
+                  type: varchar
+                  constraints:
+                    nullable: false
+              - column:
+                  name: authors
+                  type: varchar
+              - column:
+                  name: cover
+                  type: varchar
+              - column:
+                  name: score
+                  type: int
+              - column:
+                  name: source_type
+                  type: varchar
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_by
+                  type: uuid
+              - column:
+                  name: created_at
+                  type: timestamptz
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: timestamptz
+                  constraints:
+                    nullable: false
+
+        - addForeignKeyConstraint:
+            baseColumnNames: created_by
+            baseTableName: books
+            constraintName: fk_book_user
+            onDelete: SET NULL
+            onUpdate: CASCADE
+            referencedColumnNames: user_id
+            referencedTableName: users
+
+        - sql:
+            dbms: postgresql
+            sql: "ALTER TABLE books ADD CONSTRAINT source_type_check CHECK (source_type IN ('OpenLibrary', 'GoogleBooks', 'BibliotekaNarodowa', 'User'))"
+
+        - createIndex:
+            tableName: books
+            columns:
+              - column:
+                  name: isbn
+
+        - createIndex:
+            tableName: books
+            columns:
+              - column:
+                  name: score
