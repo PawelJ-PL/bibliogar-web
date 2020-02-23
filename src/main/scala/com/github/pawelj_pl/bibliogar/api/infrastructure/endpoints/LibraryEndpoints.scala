@@ -2,7 +2,7 @@ package com.github.pawelj_pl.bibliogar.api.infrastructure.endpoints
 
 import com.github.pawelj_pl.bibliogar.api.domain.library.LoanDurationUnit
 import com.github.pawelj_pl.bibliogar.api.infrastructure.authorization.{AuthInputs, SecuredEndpoint}
-import com.github.pawelj_pl.bibliogar.api.infrastructure.dto.library.{DurationValue, Implicits, LibraryDataReq, LibraryDataResp, LibraryName}
+import com.github.pawelj_pl.bibliogar.api.infrastructure.dto.library.{BooksLimit, DurationValue, Implicits, LibraryDataReq, LibraryDataResp, LibraryName}
 import com.github.pawelj_pl.bibliogar.api.infrastructure.http.{ApiEndpoint, ErrorResponse}
 import com.github.pawelj_pl.bibliogar.api.infrastructure.http.Implicits.Fuuid._
 import io.chrisdavenport.fuuid.FUUID
@@ -15,9 +15,9 @@ object LibraryEndpoints extends ApiEndpoint with SecuredEndpoint with Implicits 
   private val librariesPrefix = apiPrefix / "libraries"
 
   private final val ExampleLibraryDataReq =
-    LibraryDataReq(None, LibraryName("My awesome library"), DurationValue(2), LoanDurationUnit.Month)
+    LibraryDataReq(None, LibraryName("My awesome library"), DurationValue(2), LoanDurationUnit.Month, Some(BooksLimit(5)))
   private final val ExampleLibraryDataResp =
-    LibraryDataResp("foo", FUUID.fuuid("9e34652f-6921-4e2b-82af-de959fb9871a"), "My awesome library", 2, LoanDurationUnit.Month)
+    LibraryDataResp("foo", FUUID.fuuid("9e34652f-6921-4e2b-82af-de959fb9871a"), "My awesome library", 2, LoanDurationUnit.Month, Some(5))
 
   val createLibraryEndpoint: Endpoint[(AuthInputs, LibraryDataReq), ErrorResponse, LibraryDataResp, Nothing] =
     endpoint

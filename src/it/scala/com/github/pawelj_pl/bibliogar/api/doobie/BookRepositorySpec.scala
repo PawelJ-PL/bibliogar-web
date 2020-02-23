@@ -7,6 +7,7 @@ import com.github.pawelj_pl.bibliogar.api.infrastructure.repositories.{DoobieBoo
 import com.github.pawelj_pl.bibliogar.api.itconstants.{BookConstants, UserConstants}
 import com.softwaremill.diffx.scalatest.DiffMatcher
 import doobie.implicits._
+import org.http4s.implicits._
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
@@ -67,6 +68,35 @@ class BookRepositorySpec
       transaction.transact(transactor).unsafeRunSync()
     }
 
+    "find books by metadata" in {
+      val transaction = for {
+        _ <- userRepo.create(ExampleUser)
+        _ <- repo.create(ExampleBook)
+        _ <- repo.create(ExampleBook.copy(id = ExampleId1, title = "t1"))
+        _ <- repo.create(ExampleBook.copy(id = ExampleId2, authors = Some("other authors")))
+        _ <- repo.create(ExampleBook.copy(id = ExampleId3, score = Some(10)))
+        _ <- repo.create(ExampleBook.copy(id = ExampleId4, cover = Some(uri"http://localhots:1111/cover.jpg")))
+        _ <- repo.create(ExampleBook.copy(id = ExampleId5, sourceType = SourceType.OpenLibrary))
+        _ <- repo.create(ExampleBook.copy(id = ExampleId6, isbn = "123456"))
+        _ <- repo.create(ExampleBook.copy(id = ExampleId7, score = None))
+        _ <- repo.create(ExampleBook.copy(id = ExampleId8, score = Some(2)))
+        _ <- repo.create(ExampleBook.copy(id = ExampleId9, authors = None))
+        _ <- repo.create(ExampleBook.copy(id = ExampleId10, cover = None))
+        exampleResult <- repo.findByMetadata(ExampleBook.isbn,
+                                             ExampleBook.title,
+                                             ExampleBook.authors,
+                                             ExampleBook.cover,
+                                             ExampleBook.sourceType)
+        emptyAuthorsResult <- repo.findByMetadata(ExampleBook.isbn, ExampleBook.title, None, ExampleBook.cover, ExampleBook.sourceType)
+        emptyCoverResult   <- repo.findByMetadata(ExampleBook.isbn, ExampleBook.title, ExampleBook.authors, None, ExampleBook.sourceType)
+      } yield {
+        exampleResult.map(_.id) should matchTo(List(ExampleId7, ExampleId3, ExampleBook.id, ExampleId8))
+        emptyAuthorsResult.map(_.id) should matchTo(List(ExampleId9))
+        emptyCoverResult.map(_.id) should matchTo(List(ExampleId10))
+      }
+      transaction.transact(transactor).unsafeRunSync()
+    }
+
     "increase score" in {
       val transaction = for {
         _           <- userRepo.create(ExampleUser)
@@ -88,7 +118,8 @@ class BookRepositorySpec
       } yield {
         book1Before should matchTo(List(ExampleBook.copy(createdAt = RepoTimestamp, updatedAt = RepoTimestamp)))
         book1After should matchTo(List(ExampleBook.copy(createdAt = RepoTimestamp, updatedAt = RepoTimestamp, score = Some(5))))
-        book2Before should matchTo(List(ExampleBook.copy(id = ExampleId1, isbn = "1", createdAt = RepoTimestamp, updatedAt = RepoTimestamp)))
+        book2Before should matchTo(
+          List(ExampleBook.copy(id = ExampleId1, isbn = "1", createdAt = RepoTimestamp, updatedAt = RepoTimestamp)))
         book2After should matchTo(List(ExampleBook.copy(id = ExampleId1, isbn = "1", createdAt = RepoTimestamp, updatedAt = RepoTimestamp)))
         book3Before should matchTo(
           List(
@@ -106,7 +137,8 @@ class BookRepositorySpec
                              sourceType = SourceType.OpenLibrary,
                              createdAt = RepoTimestamp,
                              updatedAt = RepoTimestamp)))
-        book4Before should matchTo(List(ExampleBook.copy(id = ExampleId3, isbn = "3", createdAt = RepoTimestamp, updatedAt = RepoTimestamp)))
+        book4Before should matchTo(
+          List(ExampleBook.copy(id = ExampleId3, isbn = "3", createdAt = RepoTimestamp, updatedAt = RepoTimestamp)))
         book4After should matchTo(
           List(ExampleBook.copy(id = ExampleId3, isbn = "3", score = Some(7), createdAt = RepoTimestamp, updatedAt = RepoTimestamp)))
       }

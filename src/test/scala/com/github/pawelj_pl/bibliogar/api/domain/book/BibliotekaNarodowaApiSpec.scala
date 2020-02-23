@@ -42,8 +42,9 @@ class BibliotekaNarodowaApiSpec extends AnyWordSpec with Matchers with DiffMatch
             """
       val client = Client.fromHttpApp(bibliotekaNarodowaApiResponses(Ok(body)))
       val service = BN.ApiClient(client)
-      val result = service.get(ExampleBook.isbn).value.unsafeRunSync()
-      result should matchTo(Option(ExampleBook.copy(id = ExampleId1, cover = None, score = None, sourceType = SourceType.BibliotekaNarodowa, createdBy = None)))
+      val result = service.get(ExampleBook.isbn).unsafeRunSync()
+      result should matchTo(
+        Option(ExampleBook.copy(id = ExampleId1, cover = None, score = None, sourceType = SourceType.BibliotekaNarodowa, createdBy = None)))
     }
     "return None" when {
       "book not found" in {
@@ -55,7 +56,7 @@ class BibliotekaNarodowaApiSpec extends AnyWordSpec with Matchers with DiffMatch
             """
         val client = Client.fromHttpApp(bibliotekaNarodowaApiResponses(Ok(body)))
         val service = BN.ApiClient(client)
-        val result = service.get(ExampleBook.isbn).value.unsafeRunSync()
+        val result = service.get(ExampleBook.isbn).unsafeRunSync()
         result shouldBe None
       }
       "response decode failed" in {
@@ -63,13 +64,13 @@ class BibliotekaNarodowaApiSpec extends AnyWordSpec with Matchers with DiffMatch
           json"{}"
         val client = Client.fromHttpApp(bibliotekaNarodowaApiResponses(Ok(body)))
         val service = BN.ApiClient(client)
-        val result = service.get(ExampleBook.isbn).value.unsafeRunSync()
+        val result = service.get(ExampleBook.isbn).unsafeRunSync()
         result shouldBe None
       }
       "http call failed" in {
         val client = Client.fromHttpApp(bibliotekaNarodowaApiResponses(InternalServerError()))
         val service = BN.ApiClient(client)
-        val result = service.get(ExampleBook.isbn).value.unsafeRunSync()
+        val result = service.get(ExampleBook.isbn).unsafeRunSync()
         result shouldBe None
       }
     }

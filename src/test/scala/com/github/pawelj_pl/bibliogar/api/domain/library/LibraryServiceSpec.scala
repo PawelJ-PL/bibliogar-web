@@ -7,7 +7,7 @@ import cats.mtl.instances.all._
 import cats.mtl.MonadState
 import com.github.pawelj_pl.bibliogar.api.{CommonError, LibraryError}
 import com.github.pawelj_pl.bibliogar.api.constants.{LibraryConstants, UserConstants}
-import com.github.pawelj_pl.bibliogar.api.infrastructure.dto.library.{DurationValue, LibraryDataReq, LibraryName}
+import com.github.pawelj_pl.bibliogar.api.infrastructure.dto.library.{BooksLimit, DurationValue, LibraryDataReq, LibraryName}
 import com.github.pawelj_pl.bibliogar.api.infrastructure.utils.{RandomProvider, TimeProvider}
 import com.github.pawelj_pl.bibliogar.api.testdoubles.repositories.LibraryRepositoryFake
 import com.github.pawelj_pl.bibliogar.api.testdoubles.utils.{RandomProviderFake, TimeProviderFake}
@@ -35,10 +35,13 @@ class LibraryServiceSpec extends AnyWordSpec with Matchers with DiffMatcher with
     LibraryService.withDb[TestEffect, TestEffect]()
   }
 
-  private val ExampleDataDto = LibraryDataReq(None,
-                                              LibraryName(ExampleLibrary.name),
-                                              DurationValue(ExampleLibrary.loanDurationValue),
-                                              ExampleLibrary.loanDurationUnit)
+  private val ExampleDataDto = LibraryDataReq(
+    None,
+    LibraryName(ExampleLibrary.name),
+    DurationValue(ExampleLibrary.loanDurationValue),
+    ExampleLibrary.loanDurationUnit,
+    ExampleLibrary.booksLimit.map(BooksLimit)
+  )
 
   "Create library" should {
     "be completed" in {

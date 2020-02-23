@@ -1,6 +1,6 @@
 package com.github.pawelj_pl.bibliogar.api.domain.book
 
-import cats.{Applicative, Monad}
+import cats.{Applicative, Monad, Parallel, Traverse}
 import cats.data.OptionT
 import cats.effect.Sync
 import cats.syntax.apply._
@@ -8,6 +8,7 @@ import cats.syntax.flatMap._
 import cats.instances.string._
 import cats.syntax.applicativeError._
 import cats.syntax.functor._
+import cats.syntax.parallel._
 import cats.syntax.show._
 import com.github.pawelj_pl.bibliogar.api.infrastructure.http.Implicits.Http4sUri._
 import com.github.pawelj_pl.bibliogar.api.infrastructure.utils.{RandomProvider, TimeProvider}
@@ -21,25 +22,24 @@ import org.http4s.client.Client
 import org.http4s.implicits._
 
 trait IsbnService[F[_]] {
-  def find(isbn: String): OptionT[F, Book]
+  def find(isbn: String): F[List[Book]]
 }
 
 object IsbnService {
   def apply[F[_]](implicit ev: IsbnService[F]): IsbnService[F] = ev
 
-  def instance[F[_]: Sync: RandomProvider: TimeProvider](httpClient: Client[F]): IsbnService[F] = (isbn: String) => {
-    OpenLibrary
-      .ApiClient[F](httpClient)
-      .get(isbn)
-      .orElse(
-        GoogleBooks
-          .ApiClient(httpClient)
-          .get(isbn)
-          .orElse(
-            BN.ApiClient(httpClient).get(isbn)
-          )
-      )
+  def instance[F[_]: Sync: Parallel: RandomProvider: TimeProvider](httpClient: Client[F]): IsbnService[F] = new IsbnService[F] {
+    implicit val listTraverse: Traverse[List] = cats.instances.list.catsStdInstancesForList
+
+    override def find(isbn: String): F[List[Book]] =
+      List(OpenLibrary.ApiClient(httpClient), GoogleBooks.ApiClient(httpClient), BN.ApiClient(httpClient))
+        .parTraverse(_.get(isbn))
+        .map(_.flatten)
   }
+}
+
+trait IsbnApi[F[_]] {
+  def get(isbn: String): F[Option[Book]]
 }
 
 object OpenLibrary {
@@ -62,8 +62,8 @@ object OpenLibrary {
 
   private implicit val responseDecoder: Decoder[IsbnResponseEntry] = deriveDecoder[IsbnResponseEntry]
 
-  class ApiClient[F[_]: Sync: RandomProvider: TimeProvider](httpClient: Client[F]) {
-    def get(isbn: String): OptionT[F, Book] = {
+  class ApiClient[F[_]: Sync: RandomProvider: TimeProvider](httpClient: Client[F]) extends IsbnApi[F] {
+    def get(isbn: String): F[Option[Book]] = {
       val params = Map("jscmd" -> "data", "format" -> "json", "bibkeys" -> show"ISBN:$isbn")
       val uri = uri"https://openlibrary.org/api/books".withQueryParams(params)
 
@@ -116,12 +116,16 @@ object GoogleBooks {
     implicit val decoder: Decoder[Response] = deriveDecoder[Response]
   }
 
-  class ApiClient[F[_]: Sync: TimeProvider: RandomProvider](httpClient: Client[F]) {
-    def get(isbn: String): OptionT[F, Book] = {
+  class ApiClient[F[_]: Sync: TimeProvider: RandomProvider](httpClient: Client[F]) extends IsbnApi[F] {
+    def get(isbn: String): F[Option[Book]] = {
       val uri = uri"https://www.googleapis.com/books/v1/volumes".withQueryParam("q", show"isbn:$isbn")
 
       val response = httpClient.expect[Response](uri)
-      ApiHelper.responseToBook[F, Response, Item]("Google Books", isbn, response, _.items.getOrElse(List.empty).headOption, _.toDomain(isbn))
+      ApiHelper.responseToBook[F, Response, Item]("Google Books",
+                                                  isbn,
+                                                  response,
+                                                  _.items.getOrElse(List.empty).headOption,
+                                                  _.toDomain(isbn))
     }
   }
   object ApiClient {
@@ -144,8 +148,8 @@ object BN {
 
   private implicit val responseDecoder: Decoder[Response] = deriveDecoder[Response]
 
-  class ApiClient[F[_]: Sync: TimeProvider: RandomProvider](httpClient: Client[F]) {
-    def get(isbn: String): OptionT[F, Book] = {
+  class ApiClient[F[_]: Sync: TimeProvider: RandomProvider](httpClient: Client[F]) extends IsbnApi[F] {
+    def get(isbn: String): F[Option[Book]] = {
       val params = Map("isbnIssn" -> isbn, "limit" -> "1")
       val uri = uri"https://data.bn.org.pl/api/bibs.json".withQueryParams(params)
 
@@ -166,7 +170,7 @@ private object ApiHelper {
     response: F[R],
     respToItem: R => Option[I],
     itemToBook: I => F[Book]
-  ): OptionT[F, Book] = {
+  ): F[Option[Book]] = {
     val log: Logger[F] = Slf4jLogger.getLogger[F]
 
     OptionT(
@@ -180,6 +184,6 @@ private object ApiHelper {
               Applicative[F].pure((): Unit)
           })
           .handleErrorWith(err => log.error(err)(show"Unable to fetch book data from $serviceName").as(None))
-    ).semiflatMap(itemToBook)
+    ).semiflatMap(itemToBook).value
   }
 }

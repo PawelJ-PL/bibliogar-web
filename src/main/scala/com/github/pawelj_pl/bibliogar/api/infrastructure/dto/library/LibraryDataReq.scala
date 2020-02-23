@@ -14,20 +14,22 @@ import sttp.tapir.codec.enumeratum.TapirCodecEnumeratum
 
 final case class LibraryName(value: String) extends AnyVal
 final case class DurationValue(value: Int) extends AnyVal
+final case class BooksLimit(value: Int) extends AnyVal
 
 final case class LibraryDataReq(
   version: Option[String],
   name: LibraryName,
   loanDurationValue: DurationValue,
-  loanDurationUnit: LoanDurationUnit) {
+  loanDurationUnit: LoanDurationUnit,
+  booksLimit: Option[BooksLimit]) {
   def toDomain[F[_]: Monad: TimeProvider: RandomProvider](userId: FUUID): F[Library] =
     for {
       now <- TimeProvider[F].now
       id  <- RandomProvider[F].randomFuuid
-    } yield Library(id, userId, name.value, loanDurationValue.value, loanDurationUnit, now, now)
+    } yield Library(id, userId, name.value, loanDurationValue.value, loanDurationUnit, booksLimit.map(_.value), now, now)
 }
 
-object LibraryDataReq extends LibraryNameImplicits with DurationValueImplicits with TapirCodecEnumeratum {
+object LibraryDataReq extends LibraryNameImplicits with DurationValueImplicits with TapirCodecEnumeratum with BooksLimitImplicits {
   implicit val versionExtractor: VersionExtractor[LibraryDataReq] = VersionExtractor.of[LibraryDataReq](_.version)
   implicit val show: Show[LibraryDataReq] = Show.fromToString
 

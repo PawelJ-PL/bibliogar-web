@@ -254,6 +254,9 @@ databaseChangeLog:
                   constraints:
                     nullable: false
               - column:
+                  name: books_limit
+                  type: int
+              - column:
                   name: created_at
                   type: timestamptz
                   constraints:

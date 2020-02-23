@@ -1,7 +1,6 @@
 package com.github.pawelj_pl.bibliogar.api.testdoubles.domain.book
 
 import cats.Functor
-import cats.data.OptionT
 import cats.instances.string._
 import cats.syntax.eq._
 import cats.mtl.MonadState
@@ -10,8 +9,8 @@ import com.github.pawelj_pl.bibliogar.api.constants.BookConstants
 import com.github.pawelj_pl.bibliogar.api.domain.book.{Book, IsbnService}
 
 object IsbnServiceFake extends BookConstants {
-  final case class IsbnServiceState(maybeBook: Option[Book] = Some(ExampleBook))
+  final case class IsbnServiceState(books: List[Book] = List(ExampleBook))
 
   def instance[F[_]: Functor](implicit S: MonadState[F, IsbnServiceState]): IsbnService[F] =
-    (isbn: String) => OptionT(S.get.map(_.maybeBook.filter(_.isbn === isbn)))
+    (isbn: String) => S.get.map(_.books.filter(_.isbn === isbn))
 }

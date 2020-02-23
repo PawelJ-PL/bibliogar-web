@@ -4,5 +4,5 @@ import com.github.pawelj_pl.bibliogar.api.domain.library.{Library, LoanDurationU
 
 trait LibraryConstants extends CommonConstants with ResourcesIdentifiers {
   final val TestLibraryName = "My library"
-  final val ExampleLibrary = Library(TestLibraryId, TestUserId, TestLibraryName, 1, LoanDurationUnit.Month, Now, Now)
+  final val ExampleLibrary = Library(TestLibraryId, TestUserId, TestLibraryName, 1, LoanDurationUnit.Month, Some(5), Now, Now)
 }

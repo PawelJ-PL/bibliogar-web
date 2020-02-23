@@ -4,7 +4,7 @@ import cats.data.NonEmptyList
 import cats.effect.{Blocker, Clock, ConcurrentEffect, ContextShift, Sync, Timer}
 import cats.syntax.reducible._
 import cats.syntax.semigroupk._
-import cats.~>
+import cats.{Parallel, ~>}
 import com.github.pawelj_pl.bibliogar.api.domain.book.{BookService, IsbnService}
 import com.github.pawelj_pl.bibliogar.api.domain.device.DevicesService
 import com.github.pawelj_pl.bibliogar.api.domain.library.LibraryService
@@ -13,24 +13,10 @@ import com.github.pawelj_pl.bibliogar.api.infrastructure.authorization.{Auth, Au
 import com.github.pawelj_pl.bibliogar.api.infrastructure.config.Config
 import com.github.pawelj_pl.bibliogar.api.infrastructure.endpoints.{BookEndpoints, DevicesEndpoint, LibraryEndpoints, UserEndpoints}
 import com.github.pawelj_pl.bibliogar.api.infrastructure.http.{ApiEndpoint, ErrorResponse, TapirErrorHandler}
-import com.github.pawelj_pl.bibliogar.api.infrastructure.repositories.{
-  CachedSessionRepository,
-  DoobieApiKeyRepository,
-  DoobieBookRepository,
-  DoobieDevicesRepository,
-  DoobieLibraryRepository,
-  DoobieUserRepository,
-  DoobieUserTokenRepository
-}
+import com.github.pawelj_pl.bibliogar.api.infrastructure.repositories.{CachedSessionRepository, DoobieApiKeyRepository, DoobieBookRepository, DoobieDevicesRepository, DoobieLibraryRepository, DoobieUserRepository, DoobieUserTokenRepository}
 import com.github.pawelj_pl.bibliogar.api.infrastructure.routes.{BookRoutes, DevicesRoutes, LibraryRoutes, Router, UserRoutes}
 import com.github.pawelj_pl.bibliogar.api.infrastructure.swagger.SwaggerRoutes
-import com.github.pawelj_pl.bibliogar.api.infrastructure.utils.{
-  Correspondence,
-  CryptProvider,
-  MessageComposer,
-  RandomProvider,
-  TimeProvider
-}
+import com.github.pawelj_pl.bibliogar.api.infrastructure.utils.{Correspondence, CryptProvider, MessageComposer, RandomProvider, TimeProvider}
 import io.chrisdavenport.fuuid.FUUID
 import org.http4s.HttpApp
 import org.http4s.client.Client
@@ -41,7 +27,7 @@ import scalacache.Mode
 import scalacache.caffeine.CaffeineCache
 import sttp.tapir.server.http4s.Http4sServerOptions
 
-class BibliogarApp[F[_]: Sync: ContextShift: ConcurrentEffect: Timer: Mode](
+class BibliogarApp[F[_]: Sync: Parallel: ContextShift: ConcurrentEffect: Timer: Mode](
   blocker: Blocker,
   appConfig: Config,
   httpClient: Client[F]

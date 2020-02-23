@@ -48,7 +48,7 @@ class GoogleBooksApiSpec extends AnyWordSpec with Matchers with DiffMatcher with
             """
       val client = Client.fromHttpApp(googleBooksApiResponses(Ok(body)))
       val service = GoogleBooks.ApiClient(client)
-      val result = service.get(ExampleBook.isbn).value.unsafeRunSync()
+      val result = service.get(ExampleBook.isbn).unsafeRunSync()
       result should matchTo(Option(ExampleBook.copy(id = ExampleId1, score = None, sourceType = SourceType.GoogleBooks, createdBy = None)))
     }
     "use small thumbnail" when {
@@ -71,7 +71,7 @@ class GoogleBooksApiSpec extends AnyWordSpec with Matchers with DiffMatcher with
             """
         val client = Client.fromHttpApp(googleBooksApiResponses(Ok(body)))
         val service = GoogleBooks.ApiClient(client)
-        val result = service.get(ExampleBook.isbn).value.unsafeRunSync()
+        val result = service.get(ExampleBook.isbn).unsafeRunSync()
         result should matchTo(
           Option(
             ExampleBook.copy(id = ExampleId1,
@@ -87,7 +87,7 @@ class GoogleBooksApiSpec extends AnyWordSpec with Matchers with DiffMatcher with
           json"{}"
         val client = Client.fromHttpApp(googleBooksApiResponses(Ok(body)))
         val service = GoogleBooks.ApiClient(client)
-        val result = service.get(ExampleBook.isbn).value.unsafeRunSync()
+        val result = service.get(ExampleBook.isbn).unsafeRunSync()
         result shouldBe None
       }
       "response decode failed" in {
@@ -101,13 +101,13 @@ class GoogleBooksApiSpec extends AnyWordSpec with Matchers with DiffMatcher with
             """
         val client = Client.fromHttpApp(googleBooksApiResponses(Ok(body)))
         val service = GoogleBooks.ApiClient(client)
-        val result = service.get(ExampleBook.isbn).value.unsafeRunSync()
+        val result = service.get(ExampleBook.isbn).unsafeRunSync()
         result shouldBe None
       }
       "http call failed" in {
         val client = Client.fromHttpApp(googleBooksApiResponses(InternalServerError()))
         val service = GoogleBooks.ApiClient(client)
-        val result = service.get(ExampleBook.isbn).value.unsafeRunSync()
+        val result = service.get(ExampleBook.isbn).unsafeRunSync()
         result shouldBe None
       }
     }
