@@ -13,6 +13,7 @@ final case class Library(
   name: String,
   loanDurationValue: Int,
   loanDurationUnit: LoanDurationUnit,
+  booksLimit: Option[Int],
   createdAt: Instant,
   updatedAt: Instant) {
   val version: String = updatedAt.toEpochMilli.toString

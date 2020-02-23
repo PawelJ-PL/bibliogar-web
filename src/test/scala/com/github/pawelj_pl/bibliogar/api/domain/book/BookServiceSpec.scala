@@ -52,6 +52,20 @@ class BookServiceSpec extends AnyWordSpec with Matchers with DiffMatcher with Bo
       result should matchTo(expectedBook)
       state.bookRepoState.books.toList should matchTo(List(expectedBook))
     }
+    "reuse existing book with the same metadata" in {
+      val selectedBook = ExampleBook.copy(ExampleId2, score = Some(10))
+      val initialState = TestState(
+        bookRepoState = BookRepositoryFake.BookRepositoryState(
+          books = Set(
+            ExampleBook.copy(ExampleId1, score = Some(2)),
+            selectedBook,
+            ExampleBook.copy(ExampleId2, score = Some(6))
+          )
+        ))
+      val (state, result) = instance.createBookAs(testRequest, ExampleUser.id).run(initialState).unsafeRunSync()
+      result should matchTo(selectedBook)
+      state.bookRepoState.books.toList should matchTo(initialState.bookRepoState.books.toList)
+    }
   }
 
   "Get book" should {
@@ -72,7 +86,7 @@ class BookServiceSpec extends AnyWordSpec with Matchers with DiffMatcher with Bo
           books = Set(ExampleBook, ExampleBook.copy(id = ExampleId1, score = None, sourceType = SourceType.BibliotekaNarodowa))
         ),
         isbnServiceState = IsbnServiceFake.IsbnServiceState(
-          maybeBook = Some(ExampleBook.copy(id = ExampleId2, score = None, sourceType = SourceType.GoogleBooks))
+          books = List(ExampleBook.copy(id = ExampleId2, score = None, sourceType = SourceType.GoogleBooks))
         )
       )
       val (state, result) = instance.getSuggestionForIsbn(ExampleBook.isbn).run(initialState).unsafeRunSync()
@@ -90,7 +104,7 @@ class BookServiceSpec extends AnyWordSpec with Matchers with DiffMatcher with Bo
             )
           ),
           isbnServiceState = IsbnServiceFake.IsbnServiceState(
-            maybeBook = Some(ExampleBook.copy(id = ExampleId2, score = None, sourceType = SourceType.GoogleBooks))
+            books = List(ExampleBook.copy(id = ExampleId2, score = None, sourceType = SourceType.GoogleBooks))
           )
         )
         val (state, result) = instance.getSuggestionForIsbn(ExampleBook.isbn).run(initialState).unsafeRunSync()

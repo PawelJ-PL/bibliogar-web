@@ -7,7 +7,13 @@ import io.circe.generic.semiauto.{deriveDecoder, deriveEncoder}
 import io.circe.{Decoder, Encoder}
 import io.scalaland.chimney.dsl._
 
-final case class LibraryDataResp(version: String, id: FUUID, name: String, loanDurationValue: Int, loanDurationUnit: LoanDurationUnit)
+final case class LibraryDataResp(
+  version: String,
+  id: FUUID,
+  name: String,
+  loanDurationValue: Int,
+  loanDurationUnit: LoanDurationUnit,
+  booksLimit: Option[Int])
 
 object LibraryDataResp {
   def fromDomain(library: Library): LibraryDataResp =

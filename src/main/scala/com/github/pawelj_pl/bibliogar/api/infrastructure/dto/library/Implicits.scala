@@ -4,7 +4,7 @@ import io.circe.{Decoder, Encoder}
 import io.circe.generic.extras.semiauto.{deriveUnwrappedDecoder, deriveUnwrappedEncoder}
 import sttp.tapir.{Schema, SchemaType, Validator}
 
-trait Implicits extends LibraryNameImplicits with DurationValueImplicits
+trait Implicits extends LibraryNameImplicits with DurationValueImplicits with BooksLimitImplicits
 
 trait LibraryNameImplicits {
   implicit val libraryNameEncoder: Encoder[LibraryName] = deriveUnwrappedEncoder[LibraryName]
@@ -23,5 +23,14 @@ trait DurationValueImplicits {
   implicit val tapirValidatorDurationValue: Validator[DurationValue] = Validator
     .min(1)
     .and(Validator.max(7300))
+    .contramap(_.value)
+}
+
+trait BooksLimitImplicits {
+  implicit val booksLimitEncoder: Encoder[BooksLimit] = deriveUnwrappedEncoder[BooksLimit]
+  implicit val booksLimitDecoder: Decoder[BooksLimit] = deriveUnwrappedDecoder[BooksLimit]
+  implicit val schemaForBooksLimit: Schema[BooksLimit] = Schema(SchemaType.SInteger)
+  implicit val tapirValidatorBooksLimit: Validator[BooksLimit] = Validator
+    .min(1)
     .contramap(_.value)
 }

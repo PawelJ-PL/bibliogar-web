@@ -2,7 +2,7 @@ package com.github.pawelj_pl.bibliogar.api.domain.book
 
 import java.time.Instant
 
-import cats.Show
+import cats.{Eq, Show}
 import enumeratum._
 import io.chrisdavenport.fuuid.FUUID
 import org.http4s.Uri
@@ -32,4 +32,6 @@ object SourceType extends Enum[SourceType] {
   case object GoogleBooks extends SourceType
   case object BibliotekaNarodowa extends SourceType
   case object User extends SourceType
+
+  implicit val eqInstance: Eq[SourceType] = Eq.fromUniversalEquals
 }

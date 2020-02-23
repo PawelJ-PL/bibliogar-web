@@ -10,7 +10,13 @@ import com.github.pawelj_pl.bibliogar.api.{CommonError, LibraryError}
 import com.github.pawelj_pl.bibliogar.api.constants.{LibraryConstants, UserConstants}
 import com.github.pawelj_pl.bibliogar.api.domain.library.{Library, LibraryService}
 import com.github.pawelj_pl.bibliogar.api.infrastructure.authorization.AuthInputs
-import com.github.pawelj_pl.bibliogar.api.infrastructure.dto.library.{DurationValue, LibraryDataReq, LibraryDataResp, LibraryName}
+import com.github.pawelj_pl.bibliogar.api.infrastructure.dto.library.{
+  BooksLimit,
+  DurationValue,
+  LibraryDataReq,
+  LibraryDataResp,
+  LibraryName
+}
 import com.github.pawelj_pl.bibliogar.api.infrastructure.http.ApiEndpoint.latestApiVersion
 import com.github.pawelj_pl.bibliogar.api.infrastructure.http.ErrorResponse
 import com.github.pawelj_pl.bibliogar.api.testdoubles.domain.library.LibraryServiceStub
@@ -44,12 +50,21 @@ class LibraryRoutesSpec extends AnyWordSpec with Matchers with DiffMatcher with 
   }
 
   final val ExampleLibraryDataReq =
-    LibraryDataReq(None, LibraryName(ExampleLibrary.name), DurationValue(ExampleLibrary.loanDurationValue), ExampleLibrary.loanDurationUnit)
-  final val ExampleLibraryDataResp = LibraryDataResp(ExampleLibrary.version,
-                                                     ExampleLibrary.id,
-                                                     ExampleLibrary.name,
-                                                     ExampleLibrary.loanDurationValue,
-                                                     ExampleLibrary.loanDurationUnit)
+    LibraryDataReq(
+      None,
+      LibraryName(ExampleLibrary.name),
+      DurationValue(ExampleLibrary.loanDurationValue),
+      ExampleLibrary.loanDurationUnit,
+      ExampleLibrary.booksLimit.map(BooksLimit)
+    )
+  final val ExampleLibraryDataResp = LibraryDataResp(
+    ExampleLibrary.version,
+    ExampleLibrary.id,
+    ExampleLibrary.name,
+    ExampleLibrary.loanDurationValue,
+    ExampleLibrary.loanDurationUnit,
+    ExampleLibrary.booksLimit
+  )
 
   "Create library" should {
     "return 200" in {
@@ -89,7 +104,8 @@ class LibraryRoutesSpec extends AnyWordSpec with Matchers with DiffMatcher with 
   "Get single library" should {
     "return library" in {
       val initialState = TestState()
-      val request = Request[TestEffect](method = Method.GET, uri = ApiPrefix / "libraries" / ExampleLibrary.id.toString).withHeaders(Header("X-Api-Key", "something"))
+      val request = Request[TestEffect](method = Method.GET, uri = ApiPrefix / "libraries" / ExampleLibrary.id.toString)
+        .withHeaders(Header("X-Api-Key", "something"))
       val result = routes.run(request).runA(initialState).unsafeRunSync()
       result.status shouldBe Status.Ok
       result.as[LibraryDataResp].runA(initialState).unsafeRunSync() should matchTo(ExampleLibraryDataResp)
@@ -102,18 +118,22 @@ class LibraryRoutesSpec extends AnyWordSpec with Matchers with DiffMatcher with 
     }
     "return 403" when {
       "library not found" in {
-        val initialState = TestState(libraryServiceState = LibraryServiceStub.LibraryServiceState(
-          libraryOrError = LibraryError.LibraryIdNotFound(ExampleLibrary.id).asLeft[Library]
-        ))
-        val request = Request[TestEffect](method = Method.GET, uri = ApiPrefix / "libraries" / ExampleLibrary.id.toString).withHeaders(Header("X-Api-Key", "something"))
+        val initialState = TestState(
+          libraryServiceState = LibraryServiceStub.LibraryServiceState(
+            libraryOrError = LibraryError.LibraryIdNotFound(ExampleLibrary.id).asLeft[Library]
+          ))
+        val request = Request[TestEffect](method = Method.GET, uri = ApiPrefix / "libraries" / ExampleLibrary.id.toString)
+          .withHeaders(Header("X-Api-Key", "something"))
         val result = routes.run(request).runA(initialState).unsafeRunSync()
         result.status shouldBe Status.Forbidden
       }
       "library owned by other user" in {
-        val initialState = TestState(libraryServiceState = LibraryServiceStub.LibraryServiceState(
-          libraryOrError = LibraryError.LibraryNotOwnedByUser(ExampleLibrary.id, ExampleId1).asLeft[Library]
-        ))
-        val request = Request[TestEffect](method = Method.GET, uri = ApiPrefix / "libraries" / ExampleLibrary.id.toString).withHeaders(Header("X-Api-Key", "something"))
+        val initialState = TestState(
+          libraryServiceState = LibraryServiceStub.LibraryServiceState(
+            libraryOrError = LibraryError.LibraryNotOwnedByUser(ExampleLibrary.id, ExampleId1).asLeft[Library]
+          ))
+        val request = Request[TestEffect](method = Method.GET, uri = ApiPrefix / "libraries" / ExampleLibrary.id.toString)
+          .withHeaders(Header("X-Api-Key", "something"))
         val result = routes.run(request).runA(initialState).unsafeRunSync()
         result.status shouldBe Status.Forbidden
       }
@@ -123,7 +143,8 @@ class LibraryRoutesSpec extends AnyWordSpec with Matchers with DiffMatcher with 
   "Remove library" should {
     "return 201" in {
       val initialState = TestState()
-      val request = Request[TestEffect](method = Method.DELETE, uri = ApiPrefix / "libraries" / ExampleLibrary.id.toString).withHeaders(Header("X-Api-Key", "something"))
+      val request = Request[TestEffect](method = Method.DELETE, uri = ApiPrefix / "libraries" / ExampleLibrary.id.toString)
+        .withHeaders(Header("X-Api-Key", "something"))
       val result = routes.run(request).runA(initialState).unsafeRunSync()
       result.status shouldBe Status.NoContent
     }
@@ -136,18 +157,22 @@ class LibraryRoutesSpec extends AnyWordSpec with Matchers with DiffMatcher with 
   }
   "return 403" when {
     "library not found" in {
-      val initialState = TestState(libraryServiceState = LibraryServiceStub.LibraryServiceState(
-        libraryOrError = LibraryError.LibraryIdNotFound(ExampleLibrary.id).asLeft[Library]
-      ))
-      val request = Request[TestEffect](method = Method.DELETE, uri = ApiPrefix / "libraries" / ExampleLibrary.id.toString).withHeaders(Header("X-Api-Key", "something"))
+      val initialState = TestState(
+        libraryServiceState = LibraryServiceStub.LibraryServiceState(
+          libraryOrError = LibraryError.LibraryIdNotFound(ExampleLibrary.id).asLeft[Library]
+        ))
+      val request = Request[TestEffect](method = Method.DELETE, uri = ApiPrefix / "libraries" / ExampleLibrary.id.toString)
+        .withHeaders(Header("X-Api-Key", "something"))
       val result = routes.run(request).runA(initialState).unsafeRunSync()
       result.status shouldBe Status.Forbidden
     }
     "library not owned by user" in {
-      val initialState = TestState(libraryServiceState = LibraryServiceStub.LibraryServiceState(
-        libraryOrError = LibraryError.LibraryNotOwnedByUser(ExampleLibrary.id, ExampleUser.id).asLeft[Library]
-      ))
-      val request = Request[TestEffect](method = Method.DELETE, uri = ApiPrefix / "libraries" / ExampleLibrary.id.toString).withHeaders(Header("X-Api-Key", "something"))
+      val initialState = TestState(
+        libraryServiceState = LibraryServiceStub.LibraryServiceState(
+          libraryOrError = LibraryError.LibraryNotOwnedByUser(ExampleLibrary.id, ExampleUser.id).asLeft[Library]
+        ))
+      val request = Request[TestEffect](method = Method.DELETE, uri = ApiPrefix / "libraries" / ExampleLibrary.id.toString)
+        .withHeaders(Header("X-Api-Key", "something"))
       val result = routes.run(request).runA(initialState).unsafeRunSync()
       result.status shouldBe Status.Forbidden
     }
@@ -155,9 +180,10 @@ class LibraryRoutesSpec extends AnyWordSpec with Matchers with DiffMatcher with 
 
   "Edit library" should {
     "return updated library" in {
-      val initialState = TestState(libraryServiceState = LibraryServiceStub.LibraryServiceState(
-        libraryOrError = ExampleLibrary.copy(name = "newName").asRight[LibraryError]
-      ))
+      val initialState = TestState(
+        libraryServiceState = LibraryServiceStub.LibraryServiceState(
+          libraryOrError = ExampleLibrary.copy(name = "newName").asRight[LibraryError]
+        ))
       val request = Request[TestEffect](method = Method.PUT, uri = ApiPrefix / "libraries" / ExampleLibrary.id.toString)
         .withEntity(ExampleLibraryDataReq.copy(name = LibraryName("newName")))
         .withHeaders(Header("X-Api-Key", "something"))
@@ -174,9 +200,10 @@ class LibraryRoutesSpec extends AnyWordSpec with Matchers with DiffMatcher with 
     }
     "return 412" when {
       "version does not match" in {
-        val initialState = TestState(libraryServiceState = LibraryServiceStub.LibraryServiceState(
-          libraryOrError = CommonError.ResourceVersionDoesNotMatch("foo", ExampleLibrary.version).asLeft[Library]
-        ))
+        val initialState = TestState(
+          libraryServiceState = LibraryServiceStub.LibraryServiceState(
+            libraryOrError = CommonError.ResourceVersionDoesNotMatch("foo", ExampleLibrary.version).asLeft[Library]
+          ))
         val request = Request[TestEffect](method = Method.PUT, uri = ApiPrefix / "libraries" / ExampleLibrary.id.toString)
           .withEntity(ExampleLibraryDataReq.copy(name = LibraryName("newName")))
           .withHeaders(Header("X-Api-Key", "something"))
@@ -186,9 +213,10 @@ class LibraryRoutesSpec extends AnyWordSpec with Matchers with DiffMatcher with 
     }
     "return 403" when {
       "library not found" in {
-        val initialState = TestState(libraryServiceState = LibraryServiceStub.LibraryServiceState(
-          libraryOrError = LibraryError.LibraryIdNotFound(ExampleLibrary.id).asLeft[Library]
-        ))
+        val initialState = TestState(
+          libraryServiceState = LibraryServiceStub.LibraryServiceState(
+            libraryOrError = LibraryError.LibraryIdNotFound(ExampleLibrary.id).asLeft[Library]
+          ))
         val request = Request[TestEffect](method = Method.PUT, uri = ApiPrefix / "libraries" / ExampleLibrary.id.toString)
           .withEntity(ExampleLibraryDataReq.copy(name = LibraryName("newName")))
           .withHeaders(Header("X-Api-Key", "something"))
@@ -196,9 +224,10 @@ class LibraryRoutesSpec extends AnyWordSpec with Matchers with DiffMatcher with 
         result.status shouldBe Status.Forbidden
       }
       "library owned by other user" in {
-        val initialState = TestState(libraryServiceState = LibraryServiceStub.LibraryServiceState(
-          libraryOrError = LibraryError.LibraryNotOwnedByUser(ExampleLibrary.id, ExampleUser.id).asLeft[Library]
-        ))
+        val initialState = TestState(
+          libraryServiceState = LibraryServiceStub.LibraryServiceState(
+            libraryOrError = LibraryError.LibraryNotOwnedByUser(ExampleLibrary.id, ExampleUser.id).asLeft[Library]
+          ))
         val request = Request[TestEffect](method = Method.PUT, uri = ApiPrefix / "libraries" / ExampleLibrary.id.toString)
           .withEntity(ExampleLibraryDataReq.copy(name = LibraryName("newName")))
           .withHeaders(Header("X-Api-Key", "something"))

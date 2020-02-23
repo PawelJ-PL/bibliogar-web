@@ -50,7 +50,7 @@ class OpenLibraryApiSpec extends AnyWordSpec with Matchers with DiffMatcher with
             """
       val client = Client.fromHttpApp(openLibraryApiResponses(Ok(body)))
       val service = OpenLibrary.ApiClient(client)
-      val result = service.get(ExampleBook.isbn).value.unsafeRunSync()
+      val result = service.get(ExampleBook.isbn).unsafeRunSync()
       val expectedBook = ExampleBook.copy(id = ExampleId1, sourceType = SourceType.OpenLibrary, score = None, createdBy = None)
       result should matchTo(Option(expectedBook))
     }
@@ -62,7 +62,7 @@ class OpenLibraryApiSpec extends AnyWordSpec with Matchers with DiffMatcher with
             """
         val client = Client.fromHttpApp(openLibraryApiResponses(Ok(body)))
         val service = OpenLibrary.ApiClient(client)
-        val result = service.get(ExampleBook.isbn).value.unsafeRunSync()
+        val result = service.get(ExampleBook.isbn).unsafeRunSync()
         result shouldBe None
       }
       "response decoding failed" in {
@@ -74,13 +74,13 @@ class OpenLibraryApiSpec extends AnyWordSpec with Matchers with DiffMatcher with
             """
         val client = Client.fromHttpApp(openLibraryApiResponses(Ok(body)))
         val service = OpenLibrary.ApiClient(client)
-        val result = service.get(ExampleBook.isbn).value.unsafeRunSync()
+        val result = service.get(ExampleBook.isbn).unsafeRunSync()
         result shouldBe None
       }
       "response failed" in {
         val client = Client.fromHttpApp(openLibraryApiResponses(InternalServerError()))
         val service = OpenLibrary.ApiClient(client)
-        val result = service.get(ExampleBook.isbn).value.unsafeRunSync()
+        val result = service.get(ExampleBook.isbn).unsafeRunSync()
         result shouldBe None
       }
     }

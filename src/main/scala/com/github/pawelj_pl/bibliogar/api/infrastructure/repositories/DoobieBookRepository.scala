@@ -5,6 +5,7 @@ import com.github.pawelj_pl.bibliogar.api.DB
 import com.github.pawelj_pl.bibliogar.api.domain.book.{Book, BookRepositoryAlgebra, SourceType}
 import com.github.pawelj_pl.bibliogar.api.infrastructure.utils.TimeProvider
 import io.chrisdavenport.fuuid.FUUID
+import org.http4s.Uri
 
 class DoobieBookRepository(implicit timeProvider: TimeProvider[DB]) extends BookRepositoryAlgebra[DB] with BasePostgresRepository {
   import doobieContext._
@@ -33,6 +34,26 @@ class DoobieBookRepository(implicit timeProvider: TimeProvider[DB]) extends Book
         .filter(book =>
           book.isbn == lift(isbn) && book.score.getOrNull >=
             books.filter(book => book.isbn == lift(isbn) && book.score.isDefined).map(_.score.getOrNull).avg.getOrNull)
+        .sortBy(_.score)(Ord.desc)
+    }
+  }
+
+  override def findByMetadata(
+    isbn: String,
+    title: String,
+    authors: Option[String],
+    cover: Option[Uri],
+    sourceType: SourceType
+  ): DB[List[Book]] = run {
+    quote {
+      books
+        .filter(
+          book =>
+            book.isbn == lift(isbn) &&
+              book.title == lift(title) &&
+              book.authors == lift(authors) &&
+              book.cover == lift(cover) &&
+              book.sourceType == lift(sourceType))
         .sortBy(_.score)(Ord.desc)
     }
   }
