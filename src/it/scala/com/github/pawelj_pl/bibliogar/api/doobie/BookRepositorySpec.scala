@@ -104,17 +104,20 @@ class BookRepositorySpec
         _           <- repo.create(ExampleBook.copy(id = ExampleId1, isbn = "1"))
         _           <- repo.create(ExampleBook.copy(id = ExampleId2, isbn = "2", score = None, sourceType = SourceType.OpenLibrary))
         _           <- repo.create(ExampleBook.copy(id = ExampleId3, isbn = "3"))
+        _           <- repo.create(ExampleBook.copy(id = ExampleId4, score = Some(0), isbn = "4"))
         book1Before <- repo.findByIsbnWithScoreAboveOrEqualAverage(ExampleBook.isbn)
         book2Before <- repo.findByIsbnWithScoreAboveOrEqualAverage("1")
         book3Before <- repo.findNonUserDefinedBook("2")
         book4Before <- repo.findByIsbnWithScoreAboveOrEqualAverage("3")
-        _           <- repo.increaseScore(ExampleBook.id)
-        _           <- repo.increaseScore(ExampleId2)
-        _           <- repo.increaseScore(ExampleId3, 3)
+        book5Before <- repo.findById(ExampleId4).value
+        _           <- repo.increaseScore(List(ExampleBook.id, ExampleId2))
+        _           <- repo.increaseScore(List(ExampleId3), 3)
+        _           <- repo.increaseScore(List(ExampleId4), -2)
         book1After  <- repo.findByIsbnWithScoreAboveOrEqualAverage(ExampleBook.isbn)
         book2After  <- repo.findByIsbnWithScoreAboveOrEqualAverage("1")
         book3After  <- repo.findNonUserDefinedBook("2")
         book4After  <- repo.findByIsbnWithScoreAboveOrEqualAverage("3")
+        book5After  <- repo.findById(ExampleId4).value
       } yield {
         book1Before should matchTo(List(ExampleBook.copy(createdAt = RepoTimestamp, updatedAt = RepoTimestamp)))
         book1After should matchTo(List(ExampleBook.copy(createdAt = RepoTimestamp, updatedAt = RepoTimestamp, score = Some(5))))
@@ -141,6 +144,10 @@ class BookRepositorySpec
           List(ExampleBook.copy(id = ExampleId3, isbn = "3", createdAt = RepoTimestamp, updatedAt = RepoTimestamp)))
         book4After should matchTo(
           List(ExampleBook.copy(id = ExampleId3, isbn = "3", score = Some(7), createdAt = RepoTimestamp, updatedAt = RepoTimestamp)))
+        book5Before should matchTo(
+          Option(ExampleBook.copy(id = ExampleId4, isbn = "4", score = Some(0), createdAt = RepoTimestamp, updatedAt = RepoTimestamp)))
+        book5After should matchTo(
+          Option(ExampleBook.copy(id = ExampleId4, isbn = "4", score = Some(-2), createdAt = RepoTimestamp, updatedAt = RepoTimestamp)))
       }
       transaction.transact(transactor).unsafeRunSync()
     }

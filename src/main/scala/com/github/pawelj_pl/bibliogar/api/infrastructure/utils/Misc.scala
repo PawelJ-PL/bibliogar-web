@@ -9,8 +9,8 @@ import com.github.pawelj_pl.bibliogar.api.CommonError
 object Misc {
   object resourceVersion {
     object syntax {
-      implicit class VerifyVersionOps[F[_]: Applicative, A: VersionExtractor](resource: A) {
-        def verifyOptVersion(otherVersion: String): EitherT[F, CommonError.ResourceVersionDoesNotMatch, Unit] =
+      implicit class VerifyVersionOps[A: VersionExtractor](resource: A) {
+        def verifyOptVersion[F[_]: Applicative](otherVersion: String): EitherT[F, CommonError.ResourceVersionDoesNotMatch, Unit] =
           EitherT.cond[F](
             VersionExtractor[A].extract(resource).forall(v => v === otherVersion),
             (),

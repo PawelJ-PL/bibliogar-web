@@ -1,6 +1,6 @@
 package com.github.pawelj_pl.bibliogar.api.infrastructure.http
 
-import com.github.pawelj_pl.bibliogar.api.{AppError, CommonError, DeviceError, LibraryError, UserError}
+import com.github.pawelj_pl.bibliogar.api.{AppError, CommonError, DeviceError, LibraryError, LoanError, UserError}
 import org.log4s.getLogger
 
 trait ErrorHandler {
@@ -10,6 +10,7 @@ trait ErrorHandler {
     case e: UserError    => userErrorToResponse(e)
     case e: DeviceError  => deviceErrorToResponse(e)
     case e: LibraryError => libraryErrorToResponse(e)
+    case e: LoanError    => loanErrorToResponse(e)
   }
   def userErrorToResponse(err: UserError): ErrorResponse = err match {
     case UserError.EmailAlreadyRegistered(_) =>
@@ -38,6 +39,8 @@ trait ErrorHandler {
     case CommonError.ResourceVersionDoesNotMatch(_, _) =>
       logger.warn(err.message)
       ErrorResponse.PreconditionFailed(err.message, Some(PreconditionFailedReason.ResourceErrorDoesNotMatch))
+    case CommonError.DbForeignKeyViolation(_) =>
+      ErrorResponse.BadRequest("Invalid data")
   }
 
   def deviceErrorToResponse(err: DeviceError): ErrorResponse = err match {
@@ -65,5 +68,33 @@ trait ErrorHandler {
     case CommonError.ResourceVersionDoesNotMatch(_, _) =>
       logger.warn(err.message)
       ErrorResponse.PreconditionFailed(err.message, Some(PreconditionFailedReason.ResourceErrorDoesNotMatch))
+    case CommonError.DbForeignKeyViolation(_) =>
+      ErrorResponse.BadRequest("Invalid data")
+  }
+
+  def loanErrorToResponse(err: LoanError): ErrorResponse = err match {
+    case LibraryError.LibraryNotOwnedByUser(_, _) =>
+      logger.warn(err.message)
+      ErrorResponse.Forbidden("Not allowed")
+    case LibraryError.LibraryIdNotFound(_) =>
+      logger.warn(err.message)
+      ErrorResponse.Forbidden("Not allowed")
+    case LoanError.BooksLimitExceeded(_, _) =>
+      logger.warn(err.message)
+      ErrorResponse.PreconditionFailed("Books limit exceeded", Some(PreconditionFailedReason.BooksLimitExceeded))
+    case LoanError.LoanNotFound(_) =>
+      logger.warn(err.message)
+      ErrorResponse.Forbidden("Not allowed")
+    case LoanError.LoanNotOwnedByUser(_, _) =>
+      logger.warn(err.message)
+      ErrorResponse.Forbidden("Not allowed")
+    case CommonError.ResourceVersionDoesNotMatch(_, _) =>
+      logger.warn(err.message)
+      ErrorResponse.PreconditionFailed(err.message, Some(PreconditionFailedReason.ResourceErrorDoesNotMatch))
+    case LoanError.LoanAlreadyFinished(_) =>
+      logger.warn(err.message)
+      ErrorResponse.PreconditionFailed(err.message, Some(PreconditionFailedReason.LoanAlreadyFinished))
+    case CommonError.DbForeignKeyViolation(_) =>
+      ErrorResponse.BadRequest("Invalid data")
   }
 }

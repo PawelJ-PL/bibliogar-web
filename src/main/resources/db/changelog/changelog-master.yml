@@ -46,7 +46,7 @@ databaseChangeLog:
                   type: uuid
                   constraints:
                     primaryKey: true
-                    foreignKeyName: fk_user
+                    foreignKeyName: fk_auth_user
                     deleteCascade: true
                     references: users(user_id)
               - column:
@@ -83,7 +83,7 @@ databaseChangeLog:
                   type: uuid
                   constraints:
                     nullable: false
-                    foreignKeyName: fk_user_token
+                    foreignKeyName: fk_token_user
                     deleteCascade: true
                     references: users(user_id)
               - column:
@@ -125,7 +125,7 @@ databaseChangeLog:
                   type: uuid
                   constraints:
                     nullable: false
-                    foreignKeyName: fk_user
+                    foreignKeyName: fk_devices_user
                     deleteCascade: true
                     references: users(user_id)
               - column:
@@ -175,14 +175,14 @@ databaseChangeLog:
                   type: uuid
                   constraints:
                     nullable: false
-                    foreignKeyName: fk_user
+                    foreignKeyName: fk_api_keys_user
                     deleteCascade: true
                     references: users(user_id)
               - column:
                   name: device_id
                   type: uuid
                   constraints:
-                    foreignKeyName: fk_device
+                    foreignKeyName: fk_api_key_device
                     deleteCascade: true
                     references: devices(device_id)
               - column:
@@ -235,7 +235,7 @@ databaseChangeLog:
                   type: uuid
                   constraints:
                     nullable: false
-                    foreignKeyName: fk_user
+                    foreignKeyName: fk_library_user
                     deleteCascade: true
                     references: users(user_id)
               - column:
@@ -347,3 +347,98 @@ databaseChangeLog:
             columns:
               - column:
                   name: score
+
+        - createTable:
+            tableName: loans
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  constraints:
+                    primaryKey: true
+              - column:
+                  name: user_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_loan_user
+                    deleteCascade: true
+                    references: users(user_id)
+              - column:
+                  name: library_id
+                  type: uuid
+              - column:
+                  name: return_to
+                  type: timestamptz
+                  constraints:
+                    nullable: false
+              - column:
+                  name: returned_at
+                  type: timestamptz
+              - column:
+                  name: created_at
+                  type: timestamptz
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: timestamptz
+                  constraints:
+                    nullable: false
+
+        - addForeignKeyConstraint:
+            baseColumnNames: library_id
+            baseTableName: loans
+            constraintName: fk_loan_library
+            onDelete: SET NULL
+            onUpdate: CASCADE
+            referencedColumnNames: id
+            referencedTableName: libraries
+
+        - createIndex:
+            tableName: loans
+            columns:
+              - column:
+                  name: user_id
+
+        - createIndex:
+            tableName: loans
+            columns:
+              - column:
+                  name: return_to
+
+        - createTable:
+            tableName: loan_books
+            columns:
+              - column:
+                  name: loan_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_loan_books_loan
+                    deleteCascade: true
+                    references: loans(id)
+              - column:
+                  name: book_id
+                  type: uuid
+
+        - addForeignKeyConstraint:
+            baseColumnNames: book_id
+            baseTableName: loan_books
+            constraintName: fk_loan_books_book
+            onDelete: SET NULL
+            onUpdate: CASCADE
+            referencedColumnNames: id
+            referencedTableName: books
+
+        - createIndex:
+            tableName: loan_books
+            columns:
+              - column:
+                  name: loan_id
+
+        - createIndex:
+            tableName: loan_books
+            columns:
+              - column:
+                  name: book_id

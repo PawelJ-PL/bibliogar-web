@@ -8,7 +8,7 @@ import cats.syntax.eq._
 import cats.syntax.flatMap._
 import cats.syntax.functor._
 import cats.syntax.show._
-import cats.{Monad, ~>}
+import cats.~>
 import com.github.pawelj_pl.bibliogar.api.LibraryError
 import com.github.pawelj_pl.bibliogar.api.infrastructure.dto.library.LibraryDataReq
 import com.github.pawelj_pl.bibliogar.api.infrastructure.utils.Misc.resourceVersion.syntax._
@@ -28,7 +28,7 @@ trait LibraryService[F[_]] {
 object LibraryService {
   def apply[F[_]](implicit ev: LibraryService[F]): LibraryService[F] = ev
 
-  def withDb[F[_], D[_]: Monad: TimeProvider: RandomProvider: LibraryRepositoryAlgebra: Sync]()(implicit dbToF: D ~> F): LibraryService[F] =
+  def withDb[F[_], D[_]: TimeProvider: RandomProvider: LibraryRepositoryAlgebra: Sync]()(implicit dbToF: D ~> F): LibraryService[F] =
     new LibraryService[F] {
       private val logD: Logger[D] = Slf4jLogger.getLogger[D]
 
@@ -72,7 +72,9 @@ object LibraryService {
           current <- LibraryRepositoryAlgebra[D].findById(libraryId).toRight(LibraryError.LibraryIdNotFound(libraryId))
           _       <- EitherT.cond(current.ownerId === userId, (), LibraryError.LibraryNotOwnedByUser(libraryId, userId)).leftWiden
           _       <- dto.verifyOptVersion(current.version).leftWiden[LibraryError]
-          updated = current.copy(name = dto.name.value, loanDurationValue = dto.loanDurationValue.value, loanDurationUnit = dto.loanDurationUnit)
+          updated = current.copy(name = dto.name.value,
+                                 loanDurationValue = dto.loanDurationValue.value,
+                                 loanDurationUnit = dto.loanDurationUnit)
           _     <- EitherT.liftF(logD.info(show"User $userId will update library $libraryId with data: $dto"))
           saved <- LibraryRepositoryAlgebra[D].update(updated).toRight(LibraryError.LibraryIdNotFound(updated.id)).leftWiden[LibraryError]
         } yield saved).mapK(dbToF)

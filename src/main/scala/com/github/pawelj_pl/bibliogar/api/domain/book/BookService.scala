@@ -3,7 +3,7 @@ package com.github.pawelj_pl.bibliogar.api.domain.book
 import cats.data.{NonEmptyList, OptionT}
 import cats.effect.Sync
 import cats.instances.list._
-import cats.{Monad, ~>}
+import cats.~>
 import cats.syntax.flatMap._
 import cats.syntax.functor._
 import cats.syntax.show._
@@ -23,7 +23,7 @@ trait BookService[F[_]] {
 object BookService {
   def apply[F[_]](implicit ev: BookService[F]): BookService[F] = ev
 
-  def withDb[F[_]: IsbnService, D[_]: Monad: Sync: BookRepositoryAlgebra: TimeProvider: RandomProvider](
+  def withDb[F[_]: IsbnService, D[_]: Sync: BookRepositoryAlgebra: TimeProvider: RandomProvider](
   )(implicit dbToF: D ~> F,
     liftF: F ~> D
   ): BookService[F] =

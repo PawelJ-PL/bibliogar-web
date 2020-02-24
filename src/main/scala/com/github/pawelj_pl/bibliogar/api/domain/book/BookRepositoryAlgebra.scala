@@ -10,7 +10,7 @@ trait BookRepositoryAlgebra[F[_]] {
   def findByIsbnWithScoreAboveOrEqualAverage(isbn: String): F[List[Book]]
   def findNonUserDefinedBook(isbn: String): F[List[Book]]
   def findByMetadata(isbn: String, title: String, authors: Option[String], cover: Option[Uri], sourceType: SourceType): F[List[Book]]
-  def increaseScore(bookId: FUUID, number: Int = 1): F[Unit]
+  def increaseScore(bookIds: List[FUUID], number: Int = 1): F[Unit]
 }
 
 object BookRepositoryAlgebra {

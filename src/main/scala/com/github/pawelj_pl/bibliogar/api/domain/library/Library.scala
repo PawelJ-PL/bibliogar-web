@@ -1,11 +1,10 @@
 package com.github.pawelj_pl.bibliogar.api.domain.library
 
-import java.time.Instant
+import java.time.{Instant, Period}
 
 import cats.Show
 import enumeratum._
 import io.chrisdavenport.fuuid.FUUID
-
 
 final case class Library(
   id: FUUID,
@@ -17,6 +16,12 @@ final case class Library(
   createdAt: Instant,
   updatedAt: Instant) {
   val version: String = updatedAt.toEpochMilli.toString
+  val loanPeriod: Period = loanDurationUnit match {
+    case LoanDurationUnit.Day   => Period.ofDays(loanDurationValue)
+    case LoanDurationUnit.Week  => Period.ofWeeks(loanDurationValue)
+    case LoanDurationUnit.Month => Period.ofMonths(loanDurationValue)
+    case LoanDurationUnit.Year  => Period.ofYears(loanDurationValue)
+  }
 }
 
 object Library {

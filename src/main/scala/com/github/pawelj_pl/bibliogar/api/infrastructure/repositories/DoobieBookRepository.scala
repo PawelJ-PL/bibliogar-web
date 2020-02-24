@@ -63,13 +63,13 @@ class DoobieBookRepository(implicit timeProvider: TimeProvider[DB]) extends Book
     run(quote(books.filter(b => b.isbn == lift(isbn) && b.sourceType != lift(userSource))))
   }
 
-  override def increaseScore(bookId: FUUID, number: Int = 1): DB[Unit] =
+  override def increaseScore(bookIds: List[FUUID], number: Int = 1): DB[Unit] =
     for {
       now <- timeProvider.now
       _ <- run(
         quote(
           books
-            .filter(book => book.id == lift(bookId) && book.score.isDefined)
+            .filter(book => liftQuery(bookIds).contains(book.id) && book.score.isDefined)
             .update(
               b => b.score -> b.score.map(_ + lift(number)),
               b => b.updatedAt -> lift(now)
