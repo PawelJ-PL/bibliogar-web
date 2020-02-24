@@ -42,8 +42,9 @@ object Dependencies {
       "com.softwaremill.sttp.tapir" %% "tapir-openapi-docs",
       "com.softwaremill.sttp.tapir" %% "tapir-openapi-circe-yaml",
       "com.softwaremill.sttp.tapir" %% "tapir-json-circe",
-      "com.softwaremill.sttp.tapir" %% "tapir-enumeratum"
-    ).map(_ % "0.12.20")
+      "com.softwaremill.sttp.tapir" %% "tapir-enumeratum",
+      "com.softwaremill.sttp.tapir" %% "tapir-cats"
+    ).map(_ % "0.12.22")
 
     val circe = Seq(
       "io.circe" %% "circe-core",
@@ -75,7 +76,8 @@ object Dependencies {
     val doobie = Seq(
       "org.tpolecat" %% "doobie-core",
       "org.tpolecat" %% "doobie-hikari",
-      "org.tpolecat" %% "doobie-quill"
+      "org.tpolecat" %% "doobie-quill",
+      "org.tpolecat" %% "doobie-postgres"
     ).map(_ % "0.8.6")
 
     val enumeratum = Seq(

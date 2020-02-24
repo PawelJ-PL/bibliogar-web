@@ -52,6 +52,11 @@ object BookRepositoryFake {
     override def findNonUserDefinedBook(isbn: String): F[List[Book]] =
       S.get.map(_.books.filter(_.sourceType != SourceType.User).toList)
 
-    override def increaseScore(bookId: FUUID, number: Int): F[Unit] = ???
+    override def increaseScore(bookIds: List[FUUID], number: Int): F[Unit] =
+      S.modify(state => {
+        val updatedBooks = state.books.filter(b => bookIds.contains(b.id)).map(b => b.copy(score = b.score.map(_ + number)))
+        val filteredBooks = state.books.filterNot(b => bookIds.contains(b.id) && b.score.isDefined)
+        state.copy(books = filteredBooks ++ updatedBooks)
+      })
   }
 }

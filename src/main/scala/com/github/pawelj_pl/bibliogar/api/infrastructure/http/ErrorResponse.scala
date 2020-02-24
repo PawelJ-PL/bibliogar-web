@@ -89,4 +89,6 @@ object PreconditionFailedReason extends Enum[PreconditionFailedReason] with Circ
   case object InvalidApiKeyType extends PreconditionFailedReason
   case object NotAssignedApiKey extends PreconditionFailedReason
   case object IncompatibleAppVersion extends PreconditionFailedReason
+  case object BooksLimitExceeded extends PreconditionFailedReason
+  case object LoanAlreadyFinished extends PreconditionFailedReason
 }

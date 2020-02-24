@@ -11,4 +11,6 @@ trait ResourcesIdentifiers {
   final val TestLibraryId = FUUID.fuuid("c6231ef3-7f7a-4bc9-b6f4-0776fc673235")
 
   final val TestBookId = FUUID.fuuid("c42b7079-65b6-4644-9ed5-0acbc3368c22")
+
+  final val TestLoanId = FUUID.fuuid("a978651c-11bd-4ccd-a302-1eb9841ac3b6")
 }

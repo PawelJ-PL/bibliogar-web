@@ -8,15 +8,37 @@ import cats.{Parallel, ~>}
 import com.github.pawelj_pl.bibliogar.api.domain.book.{BookService, IsbnService}
 import com.github.pawelj_pl.bibliogar.api.domain.device.DevicesService
 import com.github.pawelj_pl.bibliogar.api.domain.library.LibraryService
+import com.github.pawelj_pl.bibliogar.api.domain.loan.LoanService
 import com.github.pawelj_pl.bibliogar.api.domain.user.{UserService, UserSession}
 import com.github.pawelj_pl.bibliogar.api.infrastructure.authorization.{Auth, AuthInputs}
 import com.github.pawelj_pl.bibliogar.api.infrastructure.config.Config
-import com.github.pawelj_pl.bibliogar.api.infrastructure.endpoints.{BookEndpoints, DevicesEndpoint, LibraryEndpoints, UserEndpoints}
+import com.github.pawelj_pl.bibliogar.api.infrastructure.endpoints.{
+  BookEndpoints,
+  DevicesEndpoint,
+  LibraryEndpoints,
+  LoanEndpoints,
+  UserEndpoints
+}
 import com.github.pawelj_pl.bibliogar.api.infrastructure.http.{ApiEndpoint, ErrorResponse, TapirErrorHandler}
-import com.github.pawelj_pl.bibliogar.api.infrastructure.repositories.{CachedSessionRepository, DoobieApiKeyRepository, DoobieBookRepository, DoobieDevicesRepository, DoobieLibraryRepository, DoobieUserRepository, DoobieUserTokenRepository}
-import com.github.pawelj_pl.bibliogar.api.infrastructure.routes.{BookRoutes, DevicesRoutes, LibraryRoutes, Router, UserRoutes}
+import com.github.pawelj_pl.bibliogar.api.infrastructure.repositories.{
+  CachedSessionRepository,
+  DoobieApiKeyRepository,
+  DoobieBookRepository,
+  DoobieDevicesRepository,
+  DoobieLibraryRepository,
+  DoobieLoanRepository,
+  DoobieUserRepository,
+  DoobieUserTokenRepository
+}
+import com.github.pawelj_pl.bibliogar.api.infrastructure.routes.{BookRoutes, DevicesRoutes, LibraryRoutes, LoanRoutes, Router, UserRoutes}
 import com.github.pawelj_pl.bibliogar.api.infrastructure.swagger.SwaggerRoutes
-import com.github.pawelj_pl.bibliogar.api.infrastructure.utils.{Correspondence, CryptProvider, MessageComposer, RandomProvider, TimeProvider}
+import com.github.pawelj_pl.bibliogar.api.infrastructure.utils.{
+  Correspondence,
+  CryptProvider,
+  MessageComposer,
+  RandomProvider,
+  TimeProvider
+}
 import io.chrisdavenport.fuuid.FUUID
 import org.http4s.HttpApp
 import org.http4s.client.Client
@@ -59,26 +81,30 @@ class BibliogarApp[F[_]: Sync: Parallel: ContextShift: ConcurrentEffect: Timer: 
   private implicit val devicesRepo: DoobieDevicesRepository = new DoobieDevicesRepository
   private implicit val libraryRepo: DoobieLibraryRepository = new DoobieLibraryRepository
   private implicit val bookRepo: DoobieBookRepository = new DoobieBookRepository
+  private implicit val loanRepo: DoobieLoanRepository = new DoobieLoanRepository
 
   private implicit val userService: UserService[F] = UserService.withDb[F, DB](appConfig.auth)
   private implicit val devicesService: DevicesService[F] = DevicesService.withDb[F, DB](appConfig.mobileApp)
   private implicit val libraryService: LibraryService[F] = LibraryService.withDb[F, DB]()
   private implicit val isbnService: IsbnService[F] = IsbnService.instance(loggedClient)
   private implicit val bookService: BookService[F] = BookService.withDb[F, DB]()
+  private implicit val loanService: LoanService[F] = LoanService.withDb[F, DB]()
 
   private val authToSession: AuthInputs => F[Either[ErrorResponse, UserSession]] =
     Auth.create[F, DB].authToSession
 
   private val userEndpoints: UserEndpoints = new UserEndpoints(appConfig.auth.cookie)
 
-  private val endpoints: NonEmptyList[ApiEndpoint] = NonEmptyList.of(userEndpoints, DevicesEndpoint, LibraryEndpoints, BookEndpoints)
+  private val endpoints: NonEmptyList[ApiEndpoint] =
+    NonEmptyList.of(userEndpoints, DevicesEndpoint, LibraryEndpoints, BookEndpoints, LoanEndpoints)
 
   private val userRoutes: UserRoutes[F] = new UserRoutes[F](userEndpoints, authToSession)
   private val devicesRoutes: DevicesRoutes[F] = new DevicesRoutes[F](authToSession)
   private val libraryRoutes: LibraryRoutes[F] = new LibraryRoutes[F](authToSession)
   private val bookRoutes: BookRoutes[F] = new BookRoutes[F](authToSession)
+  private val loanRoutes: LoanRoutes[F] = new LoanRoutes[F](authToSession)
 
-  private val routes: NonEmptyList[Router[F]] = NonEmptyList.of(userRoutes, devicesRoutes, libraryRoutes, bookRoutes)
+  private val routes: NonEmptyList[Router[F]] = NonEmptyList.of(userRoutes, devicesRoutes, libraryRoutes, bookRoutes, loanRoutes)
   private val swaggerRoutes: SwaggerRoutes[F] = new SwaggerRoutes[F](blocker, endpoints)
   private val apiRoutes = routes.reduceMapK(_.routes)
 

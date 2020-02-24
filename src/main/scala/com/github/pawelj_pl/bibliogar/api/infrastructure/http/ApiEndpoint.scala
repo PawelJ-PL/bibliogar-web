@@ -27,9 +27,12 @@ trait ApiEndpoint extends ErrorHandler {
     val badRequest: EndpointOutput.StatusMapping[ErrorResponse.BadRequest] =
       statusMapping(StatusCode.BadRequest, jsonBody[ErrorResponse.BadRequest].description(Default400Description))
     def preconditionFailed(
-      description: String = "Resource version mismatch"
+      description: String = "Resource version mismatch",
+      example: ErrorResponse.PreconditionFailed =
+        ErrorResponse.PreconditionFailed("Attempting to update resource from version someVersion, but current version is otherVersion",
+          Some(PreconditionFailedReason.ResourceErrorDoesNotMatch))
     ): EndpointOutput.StatusMapping[ErrorResponse.PreconditionFailed] =
-      statusMapping(StatusCode.PreconditionFailed, jsonBody[ErrorResponse.PreconditionFailed].description(description))
+      statusMapping(StatusCode.PreconditionFailed, jsonBody[ErrorResponse.PreconditionFailed].description(description).example(example))
     def forbidden(description: String = "Operation is forbidden"): EndpointOutput.StatusMapping[ErrorResponse.Forbidden] =
       statusMapping(StatusCode.Forbidden, jsonBody[ErrorResponse.Forbidden].description(description))
     def notFound(description: String): EndpointOutput.StatusMapping[ErrorResponse.NotFound] =
