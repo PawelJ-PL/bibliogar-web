@@ -74,7 +74,8 @@ object LibraryService {
           _       <- dto.verifyOptVersion(current.version).leftWiden[LibraryError]
           updated = current.copy(name = dto.name.value,
                                  loanDurationValue = dto.loanDurationValue.value,
-                                 loanDurationUnit = dto.loanDurationUnit)
+                                 loanDurationUnit = dto.loanDurationUnit,
+                                 booksLimit = dto.booksLimit.map(_.value))
           _     <- EitherT.liftF(logD.info(show"User $userId will update library $libraryId with data: $dto"))
           saved <- LibraryRepositoryAlgebra[D].update(updated).toRight(LibraryError.LibraryIdNotFound(updated.id)).leftWiden[LibraryError]
         } yield saved).mapK(dbToF)
