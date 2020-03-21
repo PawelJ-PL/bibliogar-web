@@ -62,7 +62,7 @@ class GoogleBooksApiSpec extends AnyWordSpec with Matchers with DiffMatcher with
                     "authors": ["J.Smith", "A. Kowalski"],
                     "title": "My Book",
                     "imageLinks": {
-                      "smallThumbnail": "http://localhost:9999/cover-small.jpg"
+                      "smallThumbnail": "https://localhost:9999/cover-small.jpg"
                     }
                   }
                 }
@@ -76,10 +76,38 @@ class GoogleBooksApiSpec extends AnyWordSpec with Matchers with DiffMatcher with
           Option(
             ExampleBook.copy(id = ExampleId1,
                              score = None,
-                             cover = Some(uri"http://localhost:9999/cover-small.jpg"),
+                             cover = Some(uri"https://localhost:9999/cover-small.jpg"),
                              sourceType = SourceType.GoogleBooks,
                              createdBy = None)))
       }
+    }
+    "rewrite thumbnail url to https" in {
+      val body =
+        json"""
+            {
+              "items": [
+                {
+                  "volumeInfo": {
+                    "authors": ["J.Smith", "A. Kowalski"],
+                    "title": "My Book",
+                    "imageLinks": {
+                      "smallThumbnail": "http://localhost:9999/cover.jpg"
+                    }
+                  }
+                }
+              ]
+            }
+            """
+      val client = Client.fromHttpApp(googleBooksApiResponses(Ok(body)))
+      val service = GoogleBooks.ApiClient(client)
+      val result = service.get(ExampleBook.isbn).unsafeRunSync()
+      result should matchTo(
+        Option(
+          ExampleBook.copy(id = ExampleId1,
+            score = None,
+            cover = Some(uri"https://localhost:9999/cover.jpg"),
+            sourceType = SourceType.GoogleBooks,
+            createdBy = None)))
     }
     "return None" when {
       "book not found" in {

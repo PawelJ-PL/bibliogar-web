@@ -94,13 +94,14 @@ object GoogleBooks {
       for {
         id  <- RandomProvider[F].randomFuuid
         now <- TimeProvider[F].now
+        cover: Option[Uri] = volumeInfo.imageLinks.flatMap(images => images.thumbnail.orElse(images.smallThumbnail))
       } yield
         Book(
           id,
           isbn,
           volumeInfo.title,
           volumeInfo.authors.map(_.mkString("; ")),
-          volumeInfo.imageLinks.flatMap(images => images.thumbnail.orElse(images.smallThumbnail)),
+          cover.map(_.copy(scheme = Some(Uri.Scheme.https))),
           None,
           SourceType.GoogleBooks,
           None,
