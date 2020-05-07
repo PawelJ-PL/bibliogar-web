@@ -23,6 +23,7 @@ trait DevicesService[F[_]] {
   def isAppCompatibleWithApi(appVersion: Semver): F[Boolean]
   def registerDevice(userId: FUUID, dto: DeviceRegistrationReq): F[(Device, ApiKey)]
   def unregisterDeviceAs(userId: FUUID, devicesApiKeyId: FUUID): EitherT[F, DeviceError, Unit]
+  def getNotificationTokensRelatedToUser(userId: FUUID): F[List[NotificationToken]]
 }
 
 object DevicesService {
@@ -39,8 +40,8 @@ object DevicesService {
 
     override def registerDevice(userId: FUUID, dto: DeviceRegistrationReq): F[(Device, ApiKey)] =
       dbToF(for {
-        device         <- dto.toDomain[D](userId)
-        currentDevices <- DevicesRepositoryAlgebra[D].findByUniqueIdAndUser(dto.uniqueId, userId)
+        (device, notificationToken) <- dto.toDomain[D](userId)
+        currentDevices              <- DevicesRepositoryAlgebra[D].findByUniqueIdAndUser(dto.uniqueId, userId)
         _ <- logD.info(
           show"Removing existing devices with uniqueId ${dto.uniqueId} owned by $userId: ${currentDevices.map(_.device_id).mkString(", ")}") *>
           DevicesRepositoryAlgebra[D].delete(currentDevices.map(_.device_id): _*)
@@ -62,6 +63,7 @@ object DevicesService {
         )
         savedKey <- ApiKeyRepositoryAlgebra[D].create(apiKey)
         _        <- logD.info(s"Assigned device ${savedDevice.device_id} to user $userId with API key ${savedKey.keyId}")
+        _        <- notificationToken.map(t => DevicesRepositoryAlgebra[D].create(t)).getOrElse(Applicative[D].pure((): Unit))
       } yield (savedDevice, savedKey))
 
     override def unregisterDeviceAs(userId: FUUID, devicesApiKeyId: FUUID): EitherT[F, DeviceError, Unit] =
@@ -77,5 +79,8 @@ object DevicesService {
         _        <- EitherT.cond[D](apiKey.userId == userId, (), DeviceError.DeviceNotOwnedByUser(deviceId, userId)).leftWiden[DeviceError]
         _        <- EitherT.right[DeviceError](logD.info(s"Removing device $deviceId") *> DevicesRepositoryAlgebra[D].delete(deviceId))
       } yield ()).mapK(dbToF)
+
+    override def getNotificationTokensRelatedToUser(userId: FUUID): F[List[NotificationToken]] =
+      dbToF(DevicesRepositoryAlgebra[D].findAllNotificationTokensOwnedByUser(userId))
   }
 }

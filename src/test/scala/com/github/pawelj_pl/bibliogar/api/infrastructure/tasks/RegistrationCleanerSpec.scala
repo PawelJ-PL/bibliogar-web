@@ -44,7 +44,7 @@ class RegistrationCleanerSpec extends AnyWordSpec with Matchers with UserConstan
   final val ExampleAuthConfig = AuthConfig(1, ExampleRegistrationConfig, ExampleResetPasswordConfig, null, "dummyHash")
   final val ExampleRegistrationCleanerConf = RegistrationCleanerConfig(Cron.unsafeParse("0 */10 * ? * *"))
   final val ExampleTasksConf = TasksConfig(ExampleRegistrationCleanerConf)
-  final val ExampleConfig = Config(null, null, ExampleAuthConfig, null, ExampleTasksConf, null)
+  final val ExampleConfig = Config(null, null, ExampleAuthConfig, null, ExampleTasksConf, null, null)
 
   "Registration cleaner" should {
     "remove outdated, non confirmed registrations" in {

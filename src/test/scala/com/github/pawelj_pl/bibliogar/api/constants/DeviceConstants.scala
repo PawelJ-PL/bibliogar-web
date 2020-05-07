@@ -9,4 +9,5 @@ trait DeviceConstants extends CommonConstants with ResourcesIdentifiers {
   final val TestDeviceName = "myDeviceName"
   final val TestDescription = DeviceDescription(TestBrand, TestDescriptionId, TestDeviceName)
   final val ExampleDevice = Device(TestDeviceId, TestUserId, TestUniqueId, TestDescription, Now, Now)
+  final val ExampleNotificationToken = "someNotificationToken"
 }

@@ -151,6 +151,12 @@ databaseChangeLog:
                  constraints:
                    nullable: false
 
+        - createIndex:
+            tableName: devices
+            columns:
+              - column:
+                  name: owner_id
+
         - addUniqueConstraint:
             constraintName: device_unique_id_and_user_constraint
             tableName: devices
@@ -221,6 +227,33 @@ databaseChangeLog:
             columns:
               - column:
                   name: user_id
+
+        - createTable:
+            tableName: notification_tokens
+            columns:
+              - column:
+                  name: token
+                  type: varchar
+                  constraints:
+                    primaryKey: true
+              - column:
+                  name: device_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_notifications_device
+                    deleteCascade: true
+                    references: devices(device_id)
+              - column:
+                  name: created_at
+                  type: timestamptz
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: timestamptz
+                  constraints:
+                    nullable: false
 
         - createTable:
             tableName: libraries

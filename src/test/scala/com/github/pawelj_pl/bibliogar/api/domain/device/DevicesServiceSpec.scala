@@ -61,7 +61,7 @@ class DevicesServiceSpec extends AnyWordSpec with Matchers with UserConstants wi
   }
 
   "Register device" should {
-    val dto = DeviceRegistrationReq(ExampleDevice.uniqueId, ExampleDevice.deviceDescription)
+    val dto = DeviceRegistrationReq(ExampleDevice.uniqueId, Some(ExampleNotificationToken), ExampleDevice.deviceDescription)
     "create and return device and API key" in {
       val d1 = ExampleDevice.copy(device_id = ExampleId1)
       val d2 = ExampleDevice.copy(device_id = ExampleId2, ownerId = ExampleId3)
@@ -87,7 +87,8 @@ class DevicesServiceSpec extends AnyWordSpec with Matchers with UserConstants wi
         Now.plusSeconds(1)
       )
       result shouldBe (expectedDevice, expectedKey)
-      state.devicesRepoState shouldBe initialState.devicesRepoState.copy(devices = Set(expectedDevice, d2, d3))
+      state.devicesRepoState.devices shouldBe Set(expectedDevice, d2, d3)
+      state.devicesRepoState.notificationTokens shouldBe Set(NotificationToken(ExampleNotificationToken, FirstRandomUuid, Now, Now))
       state.apiKeyRepoState shouldBe initialState.apiKeyRepoState.copy(keys = Set(expectedKey))
     }
   }
@@ -142,6 +143,28 @@ class DevicesServiceSpec extends AnyWordSpec with Matchers with UserConstants wi
         result shouldBe Left(DeviceError.DeviceNotOwnedByUser(ExampleDevice.device_id, ExampleId1))
         state.devicesRepoState.devices shouldBe state.devicesRepoState.devices
       }
+    }
+  }
+
+  "Get notification tokens related to user" should {
+    "return tokens" in {
+      val initialState = TestState(
+        devicesRepoState = DevicesRepositoryFake.DevicesRepositoryState(
+          devices = Set(
+            ExampleDevice,
+            ExampleDevice.copy(device_id = ExampleId1, ownerId = ExampleId3),
+            ExampleDevice.copy(device_id = ExampleId2),
+          ),
+          notificationTokens = Set(
+            NotificationToken(ExampleNotificationToken, ExampleDevice.device_id, Now, Now),
+            NotificationToken("t1", ExampleId1, Now, Now),
+            NotificationToken("t2", ExampleId2, Now, Now),
+            NotificationToken("t3", ExampleId1, Now, Now),
+          )
+        )
+      )
+      val result = instance.getNotificationTokensRelatedToUser(ExampleUser.id).runA(initialState).unsafeRunSync()
+      result.map(_.token) should contain theSameElementsAs List(ExampleNotificationToken, "t2")
     }
   }
 }

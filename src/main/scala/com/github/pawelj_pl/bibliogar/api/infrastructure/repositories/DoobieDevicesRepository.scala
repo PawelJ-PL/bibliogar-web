@@ -3,7 +3,7 @@ package com.github.pawelj_pl.bibliogar.api.infrastructure.repositories
 import cats.data.OptionT
 import cats.syntax.functor._
 import com.github.pawelj_pl.bibliogar.api.DB
-import com.github.pawelj_pl.bibliogar.api.domain.device.{Device, DevicesRepositoryAlgebra}
+import com.github.pawelj_pl.bibliogar.api.domain.device.{Device, DevicesRepositoryAlgebra, NotificationToken}
 import com.github.pawelj_pl.bibliogar.api.infrastructure.utils.TimeProvider
 import io.chrisdavenport.fuuid.FUUID
 
@@ -34,6 +34,26 @@ class DoobieDevicesRepository(implicit timeProvider: TimeProvider[DB]) extends D
     }
   }
 
+  override def create(notificationToken: NotificationToken): DB[NotificationToken] =
+    for {
+      now <- TimeProvider[DB].now
+      updatedToken = notificationToken.copy(createdAt = now, updatedAt = now)
+      _ <- run(
+        quote(
+          notificationTokens
+            .insert(lift(updatedToken))
+            .onConflictUpdate(_.token)((t, e) => t.deviceId -> e.deviceId, (t, e) => t.updatedAt -> e.updatedAt)))
+    } yield updatedToken
+
+  override def findAllNotificationTokensOwnedByUser(userId: FUUID): DB[List[NotificationToken]] = run {
+    quote {
+      for {
+        ownedDevices <- devices.filter(_.ownerId == lift(userId))
+        token        <- notificationTokens.join(t => t.deviceId == ownedDevices.device_id)
+      } yield token
+    }
+  }
+
   private val devices = quote {
     querySchema[Device](
       "devices",
@@ -41,5 +61,9 @@ class DoobieDevicesRepository(implicit timeProvider: TimeProvider[DB]) extends D
       _.deviceDescription.deviceId -> "device_info_id",
       _.deviceDescription.deviceName -> "device_name"
     )
+  }
+
+  private val notificationTokens = quote {
+    querySchema[NotificationToken]("notification_tokens")
   }
 }

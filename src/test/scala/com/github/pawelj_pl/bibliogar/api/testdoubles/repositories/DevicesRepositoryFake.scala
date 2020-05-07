@@ -6,11 +6,11 @@ import cats.instances.string._
 import cats.syntax.eq._
 import cats.syntax.functor._
 import cats.mtl.MonadState
-import com.github.pawelj_pl.bibliogar.api.domain.device.{Device, DevicesRepositoryAlgebra}
+import com.github.pawelj_pl.bibliogar.api.domain.device.{Device, DevicesRepositoryAlgebra, NotificationToken}
 import io.chrisdavenport.fuuid.FUUID
 
 object DevicesRepositoryFake {
-  final case class DevicesRepositoryState(devices: Set[Device] = Set.empty)
+  final case class DevicesRepositoryState(devices: Set[Device] = Set.empty, notificationTokens: Set[NotificationToken] = Set.empty)
 
   def instance[F[_]: Monad](implicit S: MonadState[F, DevicesRepositoryState]): DevicesRepositoryAlgebra[F] =
     new DevicesRepositoryAlgebra[F] {
@@ -23,5 +23,14 @@ object DevicesRepositoryFake {
 
       override def findByUniqueIdAndUser(uniqueId: String, ownerId: FUUID): F[List[Device]] =
         S.get.map(_.devices.filter(d => d.uniqueId === uniqueId && d.ownerId === ownerId).toList)
+
+      override def create(notificationToken: NotificationToken): F[NotificationToken] =
+        S.modify(state => state.copy(notificationTokens = state.notificationTokens + notificationToken)).map(_ => notificationToken)
+
+      override def findAllNotificationTokensOwnedByUser(userId: FUUID): F[List[NotificationToken]] =
+        S.get.map(state => {
+          val matchingDevices = state.devices.filter(_.ownerId === userId)
+          state.notificationTokens.filter(t => matchingDevices.map(_.device_id).contains(t.deviceId)).toList
+        })
     }
 }

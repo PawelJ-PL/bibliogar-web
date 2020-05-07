@@ -71,7 +71,7 @@ class DevicesRoutesSpec extends AnyWordSpec with Matchers with UserConstants wit
   }
 
   "Register device" should {
-    val dto = DeviceRegistrationReq(ExampleDevice.uniqueId, ExampleDevice.deviceDescription)
+    val dto = DeviceRegistrationReq(ExampleDevice.uniqueId, Some(ExampleNotificationToken), ExampleDevice.deviceDescription)
     "return data and logout cookie user" in {
       val otherSession = ExampleUserSession.copy(sessionId = ExampleId1)
       val initialState = TestState(
