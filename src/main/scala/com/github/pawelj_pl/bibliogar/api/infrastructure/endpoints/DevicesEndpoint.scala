@@ -17,7 +17,7 @@ object DevicesEndpoint extends ApiEndpoint with SecuredEndpoint {
   private val devicesPrefix = apiPrefix / "devices"
 
   private final val ExampleDeviceRegistrationReq =
-    DeviceRegistrationReq("dd96dec43fb81c97", DeviceDescription("xiaomi", "goldfish", "Unknown"))
+    DeviceRegistrationReq("dd96dec43fb81c97", Some("abcXYZ"), DeviceDescription("xiaomi", "goldfish", "Unknown"))
 
   val checkApiCompatibilityEndpoint: Endpoint[AppCompatibilityReq, ErrorResponse, Unit, Nothing] =
     endpoint

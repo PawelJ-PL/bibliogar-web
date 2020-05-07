@@ -10,9 +10,9 @@ object Dependencies {
     )
 
     val cats = Seq(
-      "org.typelevel" %% "cats-core" % "2.0.0",
-      "org.typelevel" %% "cats-effect" % "2.0.0",
-      "org.typelevel" %% "cats-mtl-core" % "0.7.0" % "test",
+      "org.typelevel" %% "cats-core" % "2.2.0-M1",
+      "org.typelevel" %% "cats-effect" % "2.1.3",
+      "org.typelevel" %% "cats-mtl-core" % "0.7.1" % "test",
       "com.olegpy" %% "meow-mtl" % "0.3.0-M1" % "test"
     )
 
@@ -24,8 +24,9 @@ object Dependencies {
     ).map(_ % "0.21.1")
 
     val pureConfig = Seq(
-      "com.github.pureconfig" %% "pureconfig"
-    ).map(_ % "0.12.1")
+      "com.github.pureconfig" %% "pureconfig",
+      "com.github.pureconfig" %% "pureconfig-http4s"
+    ).map(_ % "0.12.3")
 
     val logger = Seq(
       "ch.qos.logback" % "logback-classic" % "1.2.3",
@@ -111,13 +112,22 @@ object Dependencies {
       "com.vdurmont" % "semver4j" % "3.1.0"
     )
 
+    val fs2 = Seq(
+      "co.fs2" %% "fs2-core" % "2.3.0"
+    )
+
+    val fcm4s = Seq(
+      "com.github.pawelj-pl" %% "fcm4s-core",
+      "com.github.pawelj-pl" %% "fcm4s-http4s"
+    ).map(_ % "1.0.0")
+
     val test = Seq(
       "org.scalatest" %% "scalatest" % "3.1.0" % "it, test",
       "com.softwaremill.diffx" %% "diffx-scalatest" % "0.3.17" % "it, test"
     )
 
     Seq(
-      libraryDependencies ++= plugins ++ cats ++ http4s ++ pureConfig ++ logger ++ swagger ++ tapir ++ circe ++ database ++ xml ++ fuuid ++ tsec ++ doobie ++ enumeratum ++ yamusca ++ console ++ cron ++ test ++ chimney ++ scalaCache ++ semver
+      libraryDependencies ++= plugins ++ cats ++ http4s ++ pureConfig ++ logger ++ swagger ++ tapir ++ circe ++ database ++ xml ++ fuuid ++ tsec ++ doobie ++ enumeratum ++ yamusca ++ console ++ cron ++ test ++ chimney ++ scalaCache ++ semver ++ fs2 ++ fcm4s
     )
   }
 }

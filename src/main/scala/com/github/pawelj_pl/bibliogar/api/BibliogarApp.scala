@@ -12,33 +12,14 @@ import com.github.pawelj_pl.bibliogar.api.domain.loan.LoanService
 import com.github.pawelj_pl.bibliogar.api.domain.user.{UserService, UserSession}
 import com.github.pawelj_pl.bibliogar.api.infrastructure.authorization.{Auth, AuthInputs}
 import com.github.pawelj_pl.bibliogar.api.infrastructure.config.Config
-import com.github.pawelj_pl.bibliogar.api.infrastructure.endpoints.{
-  BookEndpoints,
-  DevicesEndpoint,
-  LibraryEndpoints,
-  LoanEndpoints,
-  UserEndpoints
-}
+import com.github.pawelj_pl.bibliogar.api.infrastructure.endpoints.{BookEndpoints, DevicesEndpoint, LibraryEndpoints, LoanEndpoints, UserEndpoints}
 import com.github.pawelj_pl.bibliogar.api.infrastructure.http.{ApiEndpoint, ErrorResponse, TapirErrorHandler}
-import com.github.pawelj_pl.bibliogar.api.infrastructure.repositories.{
-  CachedSessionRepository,
-  DoobieApiKeyRepository,
-  DoobieBookRepository,
-  DoobieDevicesRepository,
-  DoobieLibraryRepository,
-  DoobieLoanRepository,
-  DoobieUserRepository,
-  DoobieUserTokenRepository
-}
+import com.github.pawelj_pl.bibliogar.api.infrastructure.messagebus.Message
+import com.github.pawelj_pl.bibliogar.api.infrastructure.repositories.{CachedSessionRepository, DoobieApiKeyRepository, DoobieBookRepository, DoobieDevicesRepository, DoobieLibraryRepository, DoobieLoanRepository, DoobieUserRepository, DoobieUserTokenRepository}
 import com.github.pawelj_pl.bibliogar.api.infrastructure.routes.{BookRoutes, DevicesRoutes, LibraryRoutes, LoanRoutes, Router, UserRoutes}
 import com.github.pawelj_pl.bibliogar.api.infrastructure.swagger.SwaggerRoutes
-import com.github.pawelj_pl.bibliogar.api.infrastructure.utils.{
-  Correspondence,
-  CryptProvider,
-  MessageComposer,
-  RandomProvider,
-  TimeProvider
-}
+import com.github.pawelj_pl.bibliogar.api.infrastructure.utils.{Correspondence, CryptProvider, MessageComposer, RandomProvider, TimeProvider}
+import fs2.concurrent.Topic
 import io.chrisdavenport.fuuid.FUUID
 import org.http4s.HttpApp
 import org.http4s.client.Client
@@ -52,7 +33,8 @@ import sttp.tapir.server.http4s.Http4sServerOptions
 class BibliogarApp[F[_]: Sync: Parallel: ContextShift: ConcurrentEffect: Timer: Mode](
   blocker: Blocker,
   appConfig: Config,
-  httpClient: Client[F]
+  httpClient: Client[F],
+  messageTopic: Topic[F, Message]
 )(implicit dbToF: DB ~> F,
   liftF: F ~> DB) {
   private implicit val serverOptions: Http4sServerOptions[F] =
@@ -84,11 +66,11 @@ class BibliogarApp[F[_]: Sync: Parallel: ContextShift: ConcurrentEffect: Timer: 
   private implicit val loanRepo: DoobieLoanRepository = new DoobieLoanRepository
 
   private implicit val userService: UserService[F] = UserService.withDb[F, DB](appConfig.auth)
-  private implicit val devicesService: DevicesService[F] = DevicesService.withDb[F, DB](appConfig.mobileApp)
-  private implicit val libraryService: LibraryService[F] = LibraryService.withDb[F, DB]()
+  implicit val devicesService: DevicesService[F] = DevicesService.withDb[F, DB](appConfig.mobileApp)
+  private implicit val libraryService: LibraryService[F] = LibraryService.withDb[F, DB](messageTopic)
   private implicit val isbnService: IsbnService[F] = IsbnService.instance(loggedClient)
   private implicit val bookService: BookService[F] = BookService.withDb[F, DB]()
-  private implicit val loanService: LoanService[F] = LoanService.withDb[F, DB]()
+  private implicit val loanService: LoanService[F] = LoanService.withDb[F, DB](messageTopic)
 
   private val authToSession: AuthInputs => F[Either[ErrorResponse, UserSession]] =
     Auth.create[F, DB].authToSession

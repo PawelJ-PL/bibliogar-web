@@ -1,6 +1,7 @@
 package com.github.pawelj_pl.bibliogar.api.infrastructure.config
 
 import cats.effect.{Resource, Sync}
+import com.github.pawelj_pl.fcm4s.auth.config.CredentialsConfig
 import com.typesafe.config.ConfigFactory
 import cron4s.CronExpr
 import pureconfig.{ConfigReader, ConfigSource}
@@ -14,11 +15,13 @@ final case class Config(
   auth: Config.AuthConfig,
   correspondence: Config.CorrespondenceConfig,
   tasks: Config.TasksConfig,
-  mobileApp: Config.MobileAppConfig)
+  mobileApp: Config.MobileAppConfig,
+  fcm: Config.FcmConfig)
 
 object Config {
   import CorrespondenceConfigModule._
   import Cron4sModule._
+  import pureconfig.module.http4s._
 
   sealed trait CorrespondenceConfig
 
@@ -41,6 +44,7 @@ object Config {
   final case class TasksConfig(registrationCleaner: RegistrationCleanerConfig)
   final case class CookieConfig(maxAge: FiniteDuration, secure: Boolean, httpOnly: Boolean)
   final case class MobileAppConfig(minRequiredMajor: Int)
+  final case class FcmConfig(maxTopicSize: Int, credentials: CredentialsConfig)
 
   implicit val configReader: ConfigReader[Config] = deriveReader[Config]
   implicit val serverConfigReader: ConfigReader[ServerConfig] = deriveReader[ServerConfig]
@@ -52,6 +56,8 @@ object Config {
   implicit val cookieConfigReader: ConfigReader[CookieConfig] = deriveReader[CookieConfig]
   implicit val resetPasswordConfigReader: ConfigReader[ResetPasswordConfig] = deriveReader[ResetPasswordConfig]
   implicit val mobileAppConfigReader: ConfigReader[MobileAppConfig] = deriveReader[MobileAppConfig]
+  implicit val fcmConfigReader: ConfigReader[FcmConfig] = deriveReader[FcmConfig]
+  implicit val fcmCredentialsConfigReader: ConfigReader[CredentialsConfig] = deriveReader[CredentialsConfig]
 
   def load[F[_]: Sync]: Resource[F, Config] =
     Resource.liftF[F, Config](Sync[F].delay(ConfigSource.fromConfig(ConfigFactory.load(getClass.getClassLoader)).loadOrThrow[Config]))

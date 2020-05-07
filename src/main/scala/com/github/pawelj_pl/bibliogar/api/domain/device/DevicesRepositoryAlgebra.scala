@@ -8,6 +8,9 @@ trait DevicesRepositoryAlgebra[F[_]] {
   def findById(deviceId: FUUID): OptionT[F, Device]
   def findByUniqueIdAndUser(uniqueId: String, ownerId: FUUID): F[List[Device]]
   def delete(deviceIds: FUUID*): F[Unit]
+
+  def create(notificationToken: NotificationToken): F[NotificationToken]
+  def findAllNotificationTokensOwnedByUser(userId: FUUID): F[List[NotificationToken]]
 }
 
 object DevicesRepositoryAlgebra {

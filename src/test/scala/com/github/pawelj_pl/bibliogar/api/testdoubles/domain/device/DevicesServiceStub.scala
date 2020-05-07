@@ -6,7 +6,7 @@ import cats.mtl.MonadState
 import cats.syntax.functor._
 import com.github.pawelj_pl.bibliogar.api.DeviceError
 import com.github.pawelj_pl.bibliogar.api.constants.{DeviceConstants, UserConstants}
-import com.github.pawelj_pl.bibliogar.api.domain.device.{Device, DevicesService}
+import com.github.pawelj_pl.bibliogar.api.domain.device.{Device, DevicesService, NotificationToken}
 import com.github.pawelj_pl.bibliogar.api.domain.user.ApiKey
 import com.github.pawelj_pl.bibliogar.api.infrastructure.dto.devices.DeviceRegistrationReq
 import com.vdurmont.semver4j.Semver
@@ -17,7 +17,8 @@ object DevicesServiceStub extends UserConstants with DeviceConstants {
     isAppCompatible: Boolean = true,
     device: Device = ExampleDevice,
     apiKey: ApiKey = ExampleApiKey,
-    maybeError: Option[DeviceError] = None)
+    maybeError: Option[DeviceError] = None,
+    notificationTokens: List[NotificationToken] = List(NotificationToken(ExampleNotificationToken, ExampleDevice.device_id, Now, Now)))
 
   def instance[F[_]: Functor](implicit S: MonadState[F, DevicesServiceState]): DevicesService[F] = new DevicesService[F] {
     override def isAppCompatibleWithApi(appVersion: Semver): F[Boolean] = S.get.map(_.isAppCompatible)
@@ -27,5 +28,7 @@ object DevicesServiceStub extends UserConstants with DeviceConstants {
 
     override def unregisterDeviceAs(userId: FUUID, devicesApiKeyId: FUUID): EitherT[F, DeviceError, Unit] =
       EitherT(S.get.map(_.maybeError.toLeft((): Unit)))
+
+    override def getNotificationTokensRelatedToUser(userId: FUUID): F[List[NotificationToken]] = S.get.map(_.notificationTokens)
   }
 }

@@ -6,6 +6,7 @@ import com.github.pawelj_pl.bibliogar.api.domain.user.User
 import com.github.pawelj_pl.bibliogar.api.doobie.setup.{TestDatabase, TestImplicits}
 import com.github.pawelj_pl.bibliogar.api.infrastructure.repositories.{DoobieDevicesRepository, DoobieUserRepository}
 import com.github.pawelj_pl.bibliogar.api.itconstants.{DeviceConstants, UserConstants}
+import com.softwaremill.diffx.scalatest.DiffMatcher
 import doobie.implicits._
 import org.scalatest.wordspec.AnyWordSpec
 import org.scalatest.BeforeAndAfterAll
@@ -14,6 +15,7 @@ import org.scalatest.matchers.should.Matchers
 class DevicesRepositorySpec
     extends AnyWordSpec
     with Matchers
+    with DiffMatcher
     with BeforeAndAfterAll
     with TestDatabase
     with TestImplicits
@@ -78,6 +80,30 @@ class DevicesRepositorySpec
         result <- repo.findByUniqueIdAndUser(ExampleDevice.uniqueId, ExampleDevice.ownerId)
       } yield {
         result.map(_.device_id) should contain theSameElementsAs List(ExampleDevice.device_id)
+      }
+      transaction.transact(transactor).unsafeRunSync()
+    }
+
+    "create and notification tokens" in {
+      val otherUser = User(ExampleId1, "x@y.z", "My nickname", Now, Now)
+      val transaction = for {
+        _        <- userRepo.create(ExampleUser)
+        _        <- userRepo.create(otherUser)
+        _        <- repo.create(ExampleDevice)
+        _        <- repo.create(ExampleDevice.copy(device_id = ExampleId2, uniqueId = "1"))
+        _        <- repo.create(ExampleDevice.copy(device_id = ExampleId3, ownerId = ExampleId1, uniqueId = "2"))
+        _        <- repo.create(ExampleDevice.copy(device_id = ExampleId4, ownerId = ExampleId1, uniqueId = "3"))
+        created1 <- repo.create(ExampleNotificationToken)
+        _        <- repo.create(ExampleNotificationToken.copy(token = "t1"))
+        _        <- repo.create(ExampleNotificationToken.copy(token = "t2", deviceId = ExampleId2))
+        _        <- repo.create(ExampleNotificationToken.copy(token = "t3", deviceId = ExampleId3))
+        _        <- repo.create(ExampleNotificationToken.copy(token = "t4", deviceId = ExampleId4))
+        updated  <- repo.create(ExampleNotificationToken.copy(deviceId = ExampleId4))
+        result   <- repo.findAllNotificationTokensOwnedByUser(ExampleUser.id)
+      } yield {
+        created1 should matchTo(ExampleNotificationToken.copy(createdAt = RepoTimestamp, updatedAt = RepoTimestamp))
+        result.map(_.token) should contain theSameElementsAs List("t1", "t2")
+        updated shouldBe ExampleNotificationToken.copy(createdAt = RepoTimestamp, updatedAt = RepoTimestamp, deviceId = ExampleId4)
       }
       transaction.transact(transactor).unsafeRunSync()
     }
