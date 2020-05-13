@@ -3,7 +3,7 @@ package com.github.pawelj_pl.bibliogar.api.domain.user
 import java.time.Instant
 import java.time.temporal.TemporalAmount
 
-import cats.~>
+import cats.{Monad, ~>}
 import cats.data.{EitherT, OptionT}
 import cats.effect.Sync
 import cats.syntax.apply._
@@ -13,15 +13,11 @@ import com.github.pawelj_pl.bibliogar.api.UserError
 import com.github.pawelj_pl.bibliogar.api.UserError.UserIdNotFound
 import com.github.pawelj_pl.bibliogar.api.infrastructure.config.Config
 import com.github.pawelj_pl.bibliogar.api.infrastructure.dto.user.{ChangePasswordReq, UserDataReq, UserLoginReq, UserRegistrationReq}
-import com.github.pawelj_pl.bibliogar.api.infrastructure.utils.{
-  Correspondence,
-  CryptProvider,
-  MessageComposer,
-  RandomProvider,
-  TimeProvider
-}
+import com.github.pawelj_pl.bibliogar.api.infrastructure.messagebus.Message
+import com.github.pawelj_pl.bibliogar.api.infrastructure.utils.{CryptProvider, RandomProvider, TimeProvider}
 import com.github.pawelj_pl.bibliogar.api.infrastructure.utils.Misc.resourceVersion.syntax._
 import com.github.pawelj_pl.bibliogar.api.infrastructure.utils.timeSyntax._
+import fs2.concurrent.Topic
 import io.chrisdavenport.fuuid.FUUID
 import io.chrisdavenport.log4cats.Logger
 import io.chrisdavenport.log4cats.slf4j.Slf4jLogger
@@ -40,10 +36,9 @@ trait UserService[F[_]] {
 object UserService {
   def apply[F[_]](implicit ev: UserService[F]): UserService[F] = ev
 
-  def withDb[
-    F[_],
-    D[_]: Sync: TimeProvider: CryptProvider: RandomProvider: UserRepositoryAlgebra: UserTokenRepositoryAlgebra: MessageComposer: Correspondence
-  ](authConfig: Config.AuthConfig
+  def withDb[F[_]: Monad, D[_]: Sync: TimeProvider: CryptProvider: RandomProvider: UserRepositoryAlgebra: UserTokenRepositoryAlgebra](
+    authConfig: Config.AuthConfig,
+    messageTopic: Topic[F, Message]
   )(implicit dbToF: D ~> F
   ): UserService[F] =
     new UserService[F] {
@@ -64,11 +59,9 @@ object UserService {
           randomToken <- EitherT.right[UserError](RandomProvider[D].secureRandomString(6))
           userToken = UserToken(randomToken, savedUser.id, TokenType.Registration, Instant.ofEpochSecond(0), Instant.ofEpochSecond(0))
           _ <- EitherT.right[UserError](UserTokenRepositoryAlgebra[D].create(userToken))
-          messageValues = Map("token" -> userToken.token)
-          message <- EitherT.right[UserError](MessageComposer[D].generateMessage("newRegistration", messageValues))
-          _       <- EitherT.right[UserError](Correspondence[D].sendMessage(savedUser.email, "Rejestracja w systemie Bibliogar", message))
-          _       <- EitherT.right[UserError](logD.info(s"Registration message has been sent to user related to registration ${savedUser.id}"))
-        } yield savedUser).mapK(dbToF)
+        } yield (savedUser, userToken))
+          .mapK(dbToF)
+          .semiflatMap { case (u, t) => messageTopic.publish1(Message.UserCreated(u, t)).as(u) }
 
       override def confirmRegistration(token: String): EitherT[F, UserError, User] =
         (for {
@@ -100,9 +93,9 @@ object UserService {
             .orElse(performDummyComputation)
             .toRight[UserError](UserError.UserEmailNotFound(credentials.email.value))
           authResult <- EitherT.liftF(auth.checkPassword(credentials.password.value))
-          _          <- EitherT.cond(authResult, (), UserError.InvalidCredentials(auth.userId)).leftWiden[UserError]
-          active     <- EitherT.liftF(auth.isActive)
-          _          <- EitherT.cond(active, (), UserError.UserNotActive(auth)).leftWiden[UserError]
+          _          <- EitherT.cond[D](authResult, (), UserError.InvalidCredentials(auth.userId)).leftWiden[UserError]
+          active     <- EitherT.liftF(auth.isActive[D])
+          _          <- EitherT.cond[D](active, (), UserError.UserNotActive(auth)).leftWiden[UserError]
         } yield user).mapK(dbToF)
 
       private def performDummyComputation: OptionT[D, (User, AuthData)] = {
@@ -114,7 +107,7 @@ object UserService {
       override def updateUser(userId: FUUID, dto: UserDataReq): EitherT[F, UserError, User] =
         (for {
           savedUser <- UserRepositoryAlgebra[D].findUserById(userId).toRight(UserError.UserIdNotFound(userId)).leftWiden[UserError]
-          _         <- dto.verifyOptVersion(savedUser.version)
+          _         <- dto.verifyOptVersion[D](savedUser.version)
           updatedUser <- UserRepositoryAlgebra[D]
             .update(savedUser.copy(nickName = dto.nickName.value))
             .toRight(UserIdNotFound(userId))
@@ -125,7 +118,7 @@ object UserService {
         (for {
           _                     <- EitherT.cond[D](dto.newPassword != dto.oldPassword, (), UserError.NewAndOldPasswordAreEqual).leftWiden[UserError]
           auth                  <- UserRepositoryAlgebra[D].findAuthDataFor(userId).toRight(UserError.UserIdNotFound(userId)).leftWiden[UserError]
-          isActive              <- EitherT.right[UserError](auth.isActive)
+          isActive              <- EitherT.right[UserError](auth.isActive[D])
           _                     <- EitherT.cond[D](isActive, (), UserError.UserNotActive(auth)).leftWiden[UserError]
           pwdVerificationResult <- EitherT.right(CryptProvider[D].bcryptCheckPw(dto.oldPassword.value, auth.passwordHash))
           _                     <- EitherT.cond[D](pwdVerificationResult, (), UserError.InvalidCredentials(userId)).leftWiden[UserError]
@@ -144,11 +137,9 @@ object UserService {
           userToken = UserToken(randomToken, user.id, TokenType.PasswordReset, Instant.ofEpochMilli(0), Instant.ofEpochMilli(0))
           _          <- OptionT.liftF(logD.info(s"Generated new password reset token for user ${user.id}"))
           savedToken <- OptionT.liftF(UserTokenRepositoryAlgebra[D].create(userToken))
-          messageValues = Map("token" -> userToken.token)
-          message <- OptionT.liftF(MessageComposer[D].generateMessage("resetPassword", messageValues))
-          _       <- OptionT.liftF(Correspondence[D].sendMessage(user.email, "Bibliogar - reset hasła", message))
-          _       <- OptionT.liftF(logD.info(s"Password reset message has been sent to user ${user.id}"))
-        } yield savedToken).mapK(dbToF)
+        } yield (user, savedToken))
+          .mapK(dbToF)
+          .semiflatMap { case (u, t) => messageTopic.publish1(Message.PasswordResetRequested(u, t)).as(t) }
 
       override def resetPassword(token: String, newPassword: String): EitherT[F, UserError, AuthData] =
         (for {
@@ -157,7 +148,7 @@ object UserService {
             .findAuthDataFor(savedToken.account)
             .toRight(UserError.UserIdNotFound(savedToken.account))
             .leftWiden[UserError]
-          isActive <- EitherT.right[UserError](authData.isActive)
+          isActive <- EitherT.right[UserError](authData.isActive[D])
           _        <- EitherT.cond[D](isActive, (), UserError.UserNotActive(authData)).leftWiden[UserError]
           _        <- EitherT.right[UserError](logD.info(s"Resetting password for user ${savedToken.account}"))
           hash     <- EitherT.right[UserError](CryptProvider[D].bcryptHash(newPassword))

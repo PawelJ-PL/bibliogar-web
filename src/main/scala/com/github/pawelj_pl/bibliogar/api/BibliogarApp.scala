@@ -18,7 +18,7 @@ import com.github.pawelj_pl.bibliogar.api.infrastructure.messagebus.Message
 import com.github.pawelj_pl.bibliogar.api.infrastructure.repositories.{CachedSessionRepository, DoobieApiKeyRepository, DoobieBookRepository, DoobieDevicesRepository, DoobieLibraryRepository, DoobieLoanRepository, DoobieUserRepository, DoobieUserTokenRepository}
 import com.github.pawelj_pl.bibliogar.api.infrastructure.routes.{BookRoutes, DevicesRoutes, LibraryRoutes, LoanRoutes, Router, UserRoutes}
 import com.github.pawelj_pl.bibliogar.api.infrastructure.swagger.SwaggerRoutes
-import com.github.pawelj_pl.bibliogar.api.infrastructure.utils.{Correspondence, CryptProvider, MessageComposer, RandomProvider, TimeProvider}
+import com.github.pawelj_pl.bibliogar.api.infrastructure.utils.{CryptProvider, RandomProvider, TimeProvider}
 import fs2.concurrent.Topic
 import io.chrisdavenport.fuuid.FUUID
 import org.http4s.HttpApp
@@ -48,8 +48,6 @@ class BibliogarApp[F[_]: Sync: Parallel: ContextShift: ConcurrentEffect: Timer: 
   private implicit val cryptProviderD: CryptProvider[DB] = CryptProvider.create[DB](appConfig.auth.cryptRounds)
   private implicit val randomProviderD: RandomProvider[DB] = RandomProvider.create[DB]
   private implicit val randomProviderF: RandomProvider[F] = RandomProvider.create[F]
-  private implicit val messageComposerD: MessageComposer[DB] = MessageComposer.create[DB]
-  private implicit val correspondenceD: Correspondence[DB] = Correspondence.create[DB](appConfig.correspondence)
 
   implicit val caffeineSessionCache: CaffeineCache[UserSession] = CaffeineCache[UserSession]
   implicit val caffeineSessionToUserCache: CaffeineCache[Set[FUUID]] = CaffeineCache[Set[FUUID]]
@@ -65,7 +63,7 @@ class BibliogarApp[F[_]: Sync: Parallel: ContextShift: ConcurrentEffect: Timer: 
   private implicit val bookRepo: DoobieBookRepository = new DoobieBookRepository
   private implicit val loanRepo: DoobieLoanRepository = new DoobieLoanRepository
 
-  private implicit val userService: UserService[F] = UserService.withDb[F, DB](appConfig.auth)
+  private implicit val userService: UserService[F] = UserService.withDb[F, DB](appConfig.auth, messageTopic)
   implicit val devicesService: DevicesService[F] = DevicesService.withDb[F, DB](appConfig.mobileApp)
   private implicit val libraryService: LibraryService[F] = LibraryService.withDb[F, DB](messageTopic)
   private implicit val isbnService: IsbnService[F] = IsbnService.instance(loggedClient)

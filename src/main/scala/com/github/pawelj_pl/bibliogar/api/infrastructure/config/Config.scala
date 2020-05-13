@@ -23,11 +23,21 @@ object Config {
   import Cron4sModule._
   import pureconfig.module.http4s._
 
-  sealed trait CorrespondenceConfig
+  sealed trait CorrespondenceConfig {
+    val maxTopicSize: Int
+  }
 
   object CorrespondenceConfig {
-    final case class ConsoleCorrespondenceConfig() extends CorrespondenceConfig
-    final case class EmailCorrespondenceConfig(smtpHost: String, smtpPort: Int) extends CorrespondenceConfig
+    final case class ConsoleCorrespondenceConfig(maxTopicSize: Int) extends CorrespondenceConfig
+    final case class EmailCorrespondenceConfig(
+      maxTopicSize: Int,
+      smtpHost: String,
+      smtpPort: Int,
+      sender: String,
+      username: Option[String],
+      password: Option[String],
+      tlsRequired: Boolean)
+        extends CorrespondenceConfig
   }
 
   final case class ServerConfig(host: String, port: Int)

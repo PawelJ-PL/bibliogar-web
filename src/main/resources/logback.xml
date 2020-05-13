@@ -15,6 +15,7 @@
     </appender>
 
     <logger name="org.http4s.blaze.channel.nio1.NIO1SocketServerGroup" level="ERROR" />
+    <logger name="org.simplejavamail" level="OFF"/>
 
     <root level="INFO">
         <appender-ref ref="ASYNC_CONSOLE"/>
