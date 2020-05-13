@@ -121,13 +121,18 @@ object Dependencies {
       "com.github.pawelj-pl" %% "fcm4s-http4s"
     ).map(_ % "1.0.0")
 
+    val mail = Seq(
+      "org.simplejavamail" % "simple-java-mail",
+      "org.simplejavamail" % "batch-module"
+    ).map(_ % "6.0.4")
+
     val test = Seq(
       "org.scalatest" %% "scalatest" % "3.1.0" % "it, test",
       "com.softwaremill.diffx" %% "diffx-scalatest" % "0.3.17" % "it, test"
     )
 
     Seq(
-      libraryDependencies ++= plugins ++ cats ++ http4s ++ pureConfig ++ logger ++ swagger ++ tapir ++ circe ++ database ++ xml ++ fuuid ++ tsec ++ doobie ++ enumeratum ++ yamusca ++ console ++ cron ++ test ++ chimney ++ scalaCache ++ semver ++ fs2 ++ fcm4s
+      libraryDependencies ++= plugins ++ cats ++ http4s ++ pureConfig ++ logger ++ swagger ++ tapir ++ circe ++ database ++ xml ++ fuuid ++ tsec ++ doobie ++ enumeratum ++ yamusca ++ console ++ cron ++ test ++ chimney ++ scalaCache ++ semver ++ fs2 ++ fcm4s ++ mail
     )
   }
 }

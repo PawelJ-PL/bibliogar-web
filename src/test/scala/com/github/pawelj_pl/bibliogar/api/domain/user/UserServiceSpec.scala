@@ -4,44 +4,28 @@ import java.time.Instant
 import java.time.temporal.ChronoUnit
 
 import cats.{Applicative, Monad, ~>}
-import cats.data.{Chain, StateT}
+import cats.data.StateT
 import cats.effect.IO
 import cats.mtl.instances.all._
 import cats.mtl.MonadState
 import com.github.pawelj_pl.bibliogar.api.{CommonError, UserError}
 import com.github.pawelj_pl.bibliogar.api.constants.UserConstants
 import com.github.pawelj_pl.bibliogar.api.infrastructure.config.Config
-import com.github.pawelj_pl.bibliogar.api.infrastructure.dto.user.{
-  ChangePasswordReq,
-  Email,
-  NickName,
-  Password,
-  UserDataReq,
-  UserLoginReq,
-  UserRegistrationReq
-}
-import com.github.pawelj_pl.bibliogar.api.infrastructure.utils.{
-  Correspondence,
-  CryptProvider,
-  MessageComposer,
-  RandomProvider,
-  TimeProvider
-}
+import com.github.pawelj_pl.bibliogar.api.infrastructure.dto.user.{ChangePasswordReq, Email, NickName, Password, UserDataReq, UserLoginReq, UserRegistrationReq}
+import com.github.pawelj_pl.bibliogar.api.infrastructure.messagebus.Message
+import com.github.pawelj_pl.bibliogar.api.infrastructure.utils.{CryptProvider, RandomProvider, TimeProvider}
+import com.github.pawelj_pl.bibliogar.api.testdoubles.messagebus.MessageTopicFake
 import com.github.pawelj_pl.bibliogar.api.testdoubles.repositories.{UserRepositoryFake, UserTokenRepositoryFake}
-import com.github.pawelj_pl.bibliogar.api.testdoubles.utils.{
-  CorrespondenceMock,
-  CryptProviderFake,
-  MessageComposerMock,
-  RandomProviderFake,
-  TimeProviderFake
-}
+import com.github.pawelj_pl.bibliogar.api.testdoubles.utils.{CryptProviderFake, RandomProviderFake, TimeProviderFake}
 import com.olegpy.meow.hierarchy.deriveMonadState
+import com.softwaremill.diffx.scalatest.DiffMatcher
+import fs2.concurrent.Topic
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
 import scala.concurrent.duration._
 
-class UserServiceSpec extends AnyWordSpec with UserConstants with Matchers {
+class UserServiceSpec extends AnyWordSpec with UserConstants with Matchers with DiffMatcher {
   type TestEffect[A] = StateT[IO, TestState, A]
 
   case class TestState(
@@ -49,7 +33,7 @@ class UserServiceSpec extends AnyWordSpec with UserConstants with Matchers {
     tokenRepoState: UserTokenRepositoryFake.TokenRepositoryState = UserTokenRepositoryFake.TokenRepositoryState(),
     timeProviderState: TimeProviderFake.TimeProviderState = TimeProviderFake.TimeProviderState(),
     randomState: RandomProviderFake.RandomState = RandomProviderFake.RandomState(),
-    notificationState: CorrespondenceMock.CorrespondenceState = CorrespondenceMock.CorrespondenceState())
+    messageTopicState: MessageTopicFake.MessageTopicState = MessageTopicFake.MessageTopicState())
 
   def instance: UserService[TestEffect] = {
     implicit def userRepo[F[_]: Monad: MonadState[*[_], TestState]]: UserRepositoryAlgebra[F] = UserRepositoryFake.instance[F]
@@ -58,14 +42,13 @@ class UserServiceSpec extends AnyWordSpec with UserConstants with Matchers {
     implicit def timeProvider[F[_]: Monad: MonadState[*[_], TestState]]: TimeProvider[F] = TimeProviderFake.instance[F]
     implicit def randomProvider[F[_]: Monad: MonadState[*[_], TestState]]: RandomProvider[F] = RandomProviderFake.instance[F]
     implicit def cryptProvider[F[_]: Applicative]: CryptProvider[F] = CryptProviderFake.instance[F]
-    implicit def notification[F[_]: MonadState[*[_], TestState]]: Correspondence[F] = CorrespondenceMock.instance[F]
-    implicit def messageComposer[F[_]: Applicative]: MessageComposer[F] = MessageComposerMock.instance[F]
+    def messageTopic[F[_]: Monad: MonadState[*[_], TestState]]: Topic[F, Message] = MessageTopicFake.instance[F]
 
     implicit def dbToApp: TestEffect ~> TestEffect = new (TestEffect ~> TestEffect) {
       override def apply[A](fa: TestEffect[A]): TestEffect[A] = fa
     }
 
-    UserService.withDb[TestEffect, TestEffect](ExampleAuthConfig)
+    UserService.withDb[TestEffect, TestEffect](ExampleAuthConfig, messageTopic)
   }
 
   final val ExampleRegistrationDto =
@@ -82,11 +65,9 @@ class UserServiceSpec extends AnyWordSpec with UserConstants with Matchers {
         result shouldBe Right(ExampleUser)
         val expectedAuthData = AuthData(ExampleUser.id, s"bcrypt($ExamplePassword)", confirmed = false, enabled = true, Now)
         val expectedToken = UserToken("124", ExampleUser.id, TokenType.Registration, Instant.EPOCH, Instant.EPOCH)
-        val expectedMessage =
-          CorrespondenceMock.Message(ExampleUser.email, "Rejestracja w systemie Bibliogar", "newRegistration - token: 124")
         state.userRepoState shouldBe UserRepositoryFake.UserRepositoryState(users = Set(ExampleUser), authData = Set(expectedAuthData))
         state.tokenRepoState shouldBe UserTokenRepositoryFake.TokenRepositoryState(tokens = Set(expectedToken))
-        state.notificationState shouldBe CorrespondenceMock.CorrespondenceState(sentMessages = Chain(expectedMessage))
+        state.messageTopicState.messages should matchTo(List[Message](Message.UserCreated(ExampleUser, expectedToken)))
       }
     }
 
@@ -98,7 +79,7 @@ class UserServiceSpec extends AnyWordSpec with UserConstants with Matchers {
         result shouldBe Left(UserError.EmailAlreadyRegistered(ExampleUser.email))
         state.userRepoState shouldBe initialState.userRepoState
         state.tokenRepoState shouldBe initialState.tokenRepoState
-        state.notificationState.sentMessages.size shouldBe 0
+        state.messageTopicState.messages.size shouldBe 0
       }
     }
   }
@@ -332,11 +313,6 @@ class UserServiceSpec extends AnyWordSpec with UserConstants with Matchers {
   "Request password reset" should {
     "generate token" in {
       val expectedToken = UserToken("124", ExampleUser.id, TokenType.PasswordReset, Instant.EPOCH, Instant.EPOCH)
-      val expectedMessage = CorrespondenceMock.Message(
-        to = ExampleUser.email,
-        subject = "Bibliogar - reset hasła",
-        message = "resetPassword - token: 124"
-      )
       val initialState = TestState(
         userRepoState = UserRepositoryFake.UserRepositoryState(users = Set(ExampleUser))
       )
@@ -344,7 +320,7 @@ class UserServiceSpec extends AnyWordSpec with UserConstants with Matchers {
       result shouldBe Some(expectedToken)
       state.userRepoState shouldBe initialState.userRepoState
       state.tokenRepoState shouldBe initialState.tokenRepoState.copy(tokens = Set(expectedToken))
-      state.notificationState shouldBe CorrespondenceMock.CorrespondenceState(sentMessages = Chain(expectedMessage))
+      state.messageTopicState.messages should matchTo(List[Message](Message.PasswordResetRequested(ExampleUser, expectedToken)))
     }
     "return None" when {
       "user not found" in {
@@ -355,7 +331,7 @@ class UserServiceSpec extends AnyWordSpec with UserConstants with Matchers {
         result shouldBe None
         state.userRepoState shouldBe initialState.userRepoState
         state.tokenRepoState shouldBe initialState.tokenRepoState
-        state.notificationState shouldBe CorrespondenceMock.CorrespondenceState(sentMessages = Chain.empty)
+        state.messageTopicState.messages.size shouldBe 0
       }
     }
   }
