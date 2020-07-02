@@ -7,17 +7,18 @@ import cats.syntax.flatMap._
 import cats.syntax.functor._
 import cats.syntax.show._
 import com.github.pawelj_pl.bibliogar.api.infrastructure.messagebus.Message
+import com.github.pawelj_pl.bibliogar.api.infrastructure.utils.tracing.{MessageEnvelope, Tracing}
 import com.github.pawelj_pl.bibliogar.api.infrastructure.utils.{Correspondence, MessageComposer}
 import fs2.INothing
 import fs2.concurrent.Topic
 import io.chrisdavenport.log4cats.slf4j.Slf4jLogger
 
-class EmailSenderHandler[F[_]: Sync: MessageComposer: Correspondence](messageTopic: Topic[F, Message], maxTopicSize: Int) {
+class EmailSenderHandler[F[_]: Sync: MessageComposer: Correspondence: Tracing](messageTopic: Topic[F, MessageEnvelope], maxTopicSize: Int) {
   private val logger = Slf4jLogger.getLogger[F]
 
   val handle: fs2.Stream[F, INothing] = messageTopic
     .subscribe(maxTopicSize)
-    .evalMap(handleMessage)
+    .evalMap(_.processWithContext(handleMessage))
     .drain
 
   private def handleMessage(message: Message): F[Unit] = {
@@ -37,7 +38,7 @@ class EmailSenderHandler[F[_]: Sync: MessageComposer: Correspondence](messageTop
   private def sendFromTemplate(templateName: String, to: String, subject: String, variables: Map[String, AnyRef]): F[Unit] = {
     for {
       message <- MessageComposer[F].generateMessage(templateName, variables)
-      _       <- Correspondence[F].sendMessage(to, subject, message)
+      _       <- Tracing[F].preserveContext(Correspondence[F].sendMessage(to, subject, message))
     } yield ()
   }
 }

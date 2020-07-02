@@ -10,27 +10,31 @@ import com.github.pawelj_pl.bibliogar.api.domain.user.UserRepositoryAlgebra
 import com.github.pawelj_pl.bibliogar.api.infrastructure.config.Config
 import com.github.pawelj_pl.bibliogar.api.infrastructure.utils.TimeProvider
 import com.github.pawelj_pl.bibliogar.api.infrastructure.utils.timeSyntax._
+import com.github.pawelj_pl.bibliogar.api.infrastructure.utils.tracing.Tracing
 import cron4s.expr.CronExpr
 import io.chrisdavenport.fuuid.FUUID
 import io.chrisdavenport.log4cats.Logger
 import io.chrisdavenport.log4cats.slf4j.Slf4jLogger
 
-class RegistrationCleaner[F[_], D[_]: Sync: TimeProvider: UserRepositoryAlgebra](config: Config)(implicit dbToF: D ~> F)
+class RegistrationCleaner[F[_]: Tracing, D[_]: Sync: TimeProvider: UserRepositoryAlgebra](config: Config)(implicit dbToF: D ~> F)
     extends TaskDefinition[F] {
   private val logD: Logger[D] = Slf4jLogger.getLogger[D]
 
   override def cron: CronExpr = config.tasks.registrationCleaner.cron
 
   override def task: F[Unit] =
-    dbToF(for {
-      now <- TimeProvider[D].now
-      outdatedRegistrations <- UserRepositoryAlgebra[D].findNotConfirmedAuthDataOlderThan(
-        now.minus(config.auth.registration.ttl.toTemporal))
-      _ <- NonEmptyList
-        .fromList(outdatedRegistrations)
-        .map(auths => deleteOutdated(auths.map(_.userId)))
-        .getOrElse(().pure[D])
-    } yield ())
+    Tracing[F].createSpan(
+      "Registration cleaner",
+      dbToF(for {
+        now <- TimeProvider[D].now
+        outdatedRegistrations <- UserRepositoryAlgebra[D].findNotConfirmedAuthDataOlderThan(
+          now.minus(config.auth.registration.ttl.toTemporal))
+        _ <- NonEmptyList
+          .fromList(outdatedRegistrations)
+          .map(auths => deleteOutdated(auths.map(_.userId)))
+          .getOrElse(().pure[D])
+      } yield ())
+    )
 
   private def deleteOutdated(userIds: NonEmptyList[FUUID]): D[Unit] =
     for {

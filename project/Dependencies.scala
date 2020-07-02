@@ -131,8 +131,19 @@ object Dependencies {
       "com.softwaremill.diffx" %% "diffx-scalatest" % "0.3.17" % "it, test"
     )
 
+    val kamon = Seq(
+      "io.kamon" %% "kamon-core",
+      "io.kamon" %% "kamon-system-metrics",
+      "io.kamon" %% "kamon-executors",
+      "io.kamon" %% "kamon-jdbc",
+      "io.kamon" %% "kamon-prometheus",
+      "io.kamon" %% "kamon-zipkin",
+      "io.kamon" %% "kamon-apm-reporter",
+      "io.kamon" %% "kamon-logback"
+    ).map(_ % "2.1.0") :+ "io.kamon" %% "kamon-http4s" % "2.0.3"
+
     Seq(
-      libraryDependencies ++= plugins ++ cats ++ http4s ++ pureConfig ++ logger ++ swagger ++ tapir ++ circe ++ database ++ xml ++ fuuid ++ tsec ++ doobie ++ enumeratum ++ yamusca ++ console ++ cron ++ test ++ chimney ++ scalaCache ++ semver ++ fs2 ++ fcm4s ++ mail
+      libraryDependencies ++= plugins ++ cats ++ http4s ++ pureConfig ++ logger ++ swagger ++ tapir ++ circe ++ database ++ xml ++ fuuid ++ tsec ++ doobie ++ enumeratum ++ yamusca ++ console ++ cron ++ test ++ chimney ++ scalaCache ++ semver ++ fs2 ++ fcm4s ++ mail ++ kamon
     )
   }
 }

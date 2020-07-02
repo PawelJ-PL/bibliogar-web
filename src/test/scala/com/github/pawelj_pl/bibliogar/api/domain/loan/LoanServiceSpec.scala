@@ -15,6 +15,7 @@ import com.github.pawelj_pl.bibliogar.api.domain.library.LibraryRepositoryAlgebr
 import com.github.pawelj_pl.bibliogar.api.infrastructure.dto.loan.{EditLoanReq, NewLoanReq}
 import com.github.pawelj_pl.bibliogar.api.infrastructure.messagebus.Message
 import com.github.pawelj_pl.bibliogar.api.infrastructure.messagebus.Message.{LoanUpdated, NewLoan}
+import com.github.pawelj_pl.bibliogar.api.infrastructure.utils.tracing.MessageEnvelope
 import com.github.pawelj_pl.bibliogar.api.infrastructure.utils.{RandomProvider, TimeProvider}
 import com.github.pawelj_pl.bibliogar.api.testdoubles.messagebus.MessageTopicFake
 import com.github.pawelj_pl.bibliogar.api.testdoubles.repositories.{BookRepositoryFake, LibraryRepositoryFake, LoanRepositoryFake}
@@ -48,7 +49,7 @@ class LoanServiceSpec
     implicit def libraryRepo[F[_]: Monad: MonadState[*[_], TestState]]: LibraryRepositoryAlgebra[F] = LibraryRepositoryFake.instance[F]
     implicit def loanRepo[F[_]: Monad: MonadState[*[_], TestState]]: LoanRepositoryAlgebra[F] = LoanRepositoryFake.instance[F]
     implicit def bookRepo[F[_]: Monad: MonadState[*[_], TestState]]: BookRepositoryAlgebra[F] = BookRepositoryFake.instance[F]
-    def messageTopic[F[_]: Monad: MonadState[*[_], TestState]]: Topic[F, Message] = MessageTopicFake.instance[F]
+    def messageTopic[F[_]: Monad: MonadState[*[_], TestState]]: Topic[F, MessageEnvelope] = MessageTopicFake.instance[F]
 
     implicit def dbToApp: TestEffect ~> TestEffect = new (TestEffect ~> TestEffect) {
       override def apply[A](fa: TestEffect[A]): TestEffect[A] = fa
@@ -79,7 +80,7 @@ class LoanServiceSpec
       val (state, result) = instance.createLoanAs(dto, ExampleUser.id).value.run(initialState).unsafeRunSync()
       result should matchTo(expectedLoan.asRight[LoanError])
       state.loanRepoState.loans.toList should matchTo(List(expectedLoan))
-      state.messageTopicState.messages should matchTo(List[Message](NewLoan(expectedLoan)))
+      state.messageTopicState.messages.map(_.message) should matchTo(List[Message](NewLoan(expectedLoan)))
     }
 
     "create loan with limit exceeded" in {
@@ -149,7 +150,7 @@ class LoanServiceSpec
         val (state, result) = instance.createLoanAs(dto, ExampleUser.id).value.run(initialState).unsafeRunSync()
         result should matchTo((LibraryError.LibraryIdNotFound(ExampleLibrary.id): LoanError).asLeft[Loan])
         state.loanRepoState should matchTo(initialState.loanRepoState)
-        state.messageTopicState.messages should matchTo(List.empty[Message])
+        state.messageTopicState.messages.map(_.message) should matchTo(List.empty[Message])
       }
       "library not owned by user" in {
         val initialState = TestState(
@@ -160,7 +161,7 @@ class LoanServiceSpec
         val (state, result) = instance.createLoanAs(dto, ExampleUser.id).value.run(initialState).unsafeRunSync()
         result should matchTo((LibraryError.LibraryNotOwnedByUser(ExampleLibrary.id, ExampleUser.id): LoanError).asLeft[Loan])
         state.loanRepoState should matchTo(initialState.loanRepoState)
-        state.messageTopicState.messages should matchTo(List.empty[Message])
+        state.messageTopicState.messages.map(_.message) should matchTo(List.empty[Message])
       }
       "books limit exceeded" in {
         val books = dto.books :+ None :+ Some(ExampleId1) :+ None
@@ -174,7 +175,7 @@ class LoanServiceSpec
           instance.createLoanAs(request, ExampleUser.id, allowLimitOverrun = false).value.run(initialState).unsafeRunSync()
         result should matchTo((LoanError.BooksLimitExceeded(ExampleLibrary, books.size): LoanError).asLeft[Loan])
         state.loanRepoState should matchTo(initialState.loanRepoState)
-        state.messageTopicState.messages should matchTo(List.empty[Message])
+        state.messageTopicState.messages.map(_.message) should matchTo(List.empty[Message])
       }
     }
   }
@@ -197,7 +198,7 @@ class LoanServiceSpec
           instance.updateLoanAs(ExampleLoan.id, dto.copy(returnTo = Instant.EPOCH), ExampleUser.id).value.run(initialState).unsafeRunSync()
         result should matchTo(expectedLoan.asRight[LoanError])
         state.loanRepoState.loans.toList should matchTo(List(expectedLoan))
-        state.messageTopicState.messages should matchTo(List[Message](LoanUpdated(expectedLoan)))
+        state.messageTopicState.messages.map(_.message) should matchTo(List[Message](LoanUpdated(expectedLoan)))
       }
 
       "books limit is exceeded" in {
@@ -391,7 +392,7 @@ class LoanServiceSpec
       val (state, result) = instance.finishLoanAs(ExampleLoan.id, ExampleUser.id).value.run(initialState).unsafeRunSync()
       result should matchTo(expectedLoan.asRight[LoanError])
       state.loanRepoState.loans.toList should matchTo(List(expectedLoan))
-      state.messageTopicState.messages should matchTo(List[Message](LoanUpdated(expectedLoan)))
+      state.messageTopicState.messages.map(_.message) should matchTo(List[Message](LoanUpdated(expectedLoan)))
     }
 
     "fail" when {

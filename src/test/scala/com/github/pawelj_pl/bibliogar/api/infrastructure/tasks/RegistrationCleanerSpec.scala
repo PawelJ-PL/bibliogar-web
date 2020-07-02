@@ -12,8 +12,10 @@ import com.github.pawelj_pl.bibliogar.api.domain.user.{AuthData, User, UserRepos
 import com.github.pawelj_pl.bibliogar.api.infrastructure.config.Config
 import com.github.pawelj_pl.bibliogar.api.infrastructure.config.Config.{AuthConfig, RegistrationCleanerConfig, RegistrationConfig, ResetPasswordConfig, TasksConfig}
 import com.github.pawelj_pl.bibliogar.api.infrastructure.utils.TimeProvider
+import com.github.pawelj_pl.bibliogar.api.infrastructure.utils.tracing.Tracing
 import com.github.pawelj_pl.bibliogar.api.testdoubles.repositories.UserRepositoryFake
 import com.github.pawelj_pl.bibliogar.api.testdoubles.utils.TimeProviderFake
+import com.github.pawelj_pl.bibliogar.api.testdoubles.utils.tracing.DummyTracer
 import com.olegpy.meow.hierarchy.deriveMonadState
 import cron4s.Cron
 import io.chrisdavenport.fuuid.FUUID
@@ -29,6 +31,7 @@ class RegistrationCleanerSpec extends AnyWordSpec with Matchers with UserConstan
   type TestEffect[A] = StateT[IO, TestState, A]
 
   def instance: TaskDefinition[TestEffect] = {
+    implicit val tracing: Tracing[TestEffect] = DummyTracer.instance[TestEffect]
     implicit def timeProvider[F[_]: Monad: MonadState[*[_], TestState]]: TimeProvider[F] = TimeProviderFake.instance[F]
     implicit def userRepo[F[_]: Monad: MonadState[*[_], TestState]]: UserRepositoryAlgebra[F] = UserRepositoryFake.instance[F]
 

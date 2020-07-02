@@ -7,10 +7,11 @@ import com.github.pawelj_pl.bibliogar.api.DB
 import com.github.pawelj_pl.bibliogar.api.infrastructure.config.Config
 import com.github.pawelj_pl.bibliogar.api.infrastructure.repositories.DoobieUserRepository
 import com.github.pawelj_pl.bibliogar.api.infrastructure.utils.TimeProvider
+import com.github.pawelj_pl.bibliogar.api.infrastructure.utils.tracing.Tracing
 import eu.timepit.fs2cron.schedule
 import org.log4s.getLogger
 
-class Scheduler[F[_]: Concurrent: Timer](config: Config)(implicit dbToF: DB ~> F) {
+class Scheduler[F[_]: Concurrent: Timer: Tracing](config: Config)(implicit dbToF: DB ~> F) {
   private[this] val logger = getLogger
 
   private implicit val clockD: Clock[DB] = Clock.create[DB]

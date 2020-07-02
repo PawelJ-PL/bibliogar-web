@@ -14,13 +14,15 @@ import com.github.pawelj_pl.bibliogar.api.infrastructure.authorization.{Auth, Au
 import com.github.pawelj_pl.bibliogar.api.infrastructure.config.Config
 import com.github.pawelj_pl.bibliogar.api.infrastructure.endpoints.{BookEndpoints, DevicesEndpoint, LibraryEndpoints, LoanEndpoints, UserEndpoints}
 import com.github.pawelj_pl.bibliogar.api.infrastructure.http.{ApiEndpoint, ErrorResponse, TapirErrorHandler}
-import com.github.pawelj_pl.bibliogar.api.infrastructure.messagebus.Message
 import com.github.pawelj_pl.bibliogar.api.infrastructure.repositories.{CachedSessionRepository, DoobieApiKeyRepository, DoobieBookRepository, DoobieDevicesRepository, DoobieLibraryRepository, DoobieLoanRepository, DoobieUserRepository, DoobieUserTokenRepository}
 import com.github.pawelj_pl.bibliogar.api.infrastructure.routes.{BookRoutes, DevicesRoutes, LibraryRoutes, LoanRoutes, Router, UserRoutes}
 import com.github.pawelj_pl.bibliogar.api.infrastructure.swagger.SwaggerRoutes
+import com.github.pawelj_pl.bibliogar.api.infrastructure.utils.tracing.{MessageEnvelope, Tracing}
 import com.github.pawelj_pl.bibliogar.api.infrastructure.utils.{CryptProvider, RandomProvider, TimeProvider}
 import fs2.concurrent.Topic
 import io.chrisdavenport.fuuid.FUUID
+import kamon.http4s.middleware.client.{KamonSupport => KamonSupportClient}
+import kamon.http4s.middleware.server.{KamonSupport => KamonSupportServer}
 import org.http4s.HttpApp
 import org.http4s.client.Client
 import org.http4s.client.middleware.{Logger => ClientLogger}
@@ -34,7 +36,7 @@ class BibliogarApp[F[_]: Sync: Parallel: ContextShift: ConcurrentEffect: Timer: 
   blocker: Blocker,
   appConfig: Config,
   httpClient: Client[F],
-  messageTopic: Topic[F, Message]
+  messageTopic: Topic[F, MessageEnvelope]
 )(implicit dbToF: DB ~> F,
   liftF: F ~> DB) {
   private implicit val serverOptions: Http4sServerOptions[F] =
@@ -52,7 +54,10 @@ class BibliogarApp[F[_]: Sync: Parallel: ContextShift: ConcurrentEffect: Timer: 
   implicit val caffeineSessionCache: CaffeineCache[UserSession] = CaffeineCache[UserSession]
   implicit val caffeineSessionToUserCache: CaffeineCache[Set[FUUID]] = CaffeineCache[Set[FUUID]]
 
+  private implicit val kamonTracingF: Tracing[F] = Tracing.usingKamon[F]()
+
   private val loggedClient: Client[F] = ClientLogger(logHeaders = false, logBody = false)(httpClient)
+  private val tracedClient: Client[F] = KamonSupportClient(loggedClient)
 
   private implicit val userRepo: DoobieUserRepository = new DoobieUserRepository
   private implicit val userTokenRepo: DoobieUserTokenRepository = new DoobieUserTokenRepository
@@ -66,7 +71,7 @@ class BibliogarApp[F[_]: Sync: Parallel: ContextShift: ConcurrentEffect: Timer: 
   private implicit val userService: UserService[F] = UserService.withDb[F, DB](appConfig.auth, messageTopic)
   implicit val devicesService: DevicesService[F] = DevicesService.withDb[F, DB](appConfig.mobileApp)
   private implicit val libraryService: LibraryService[F] = LibraryService.withDb[F, DB](messageTopic)
-  private implicit val isbnService: IsbnService[F] = IsbnService.instance(loggedClient)
+  private implicit val isbnService: IsbnService[F] = IsbnService.instance(tracedClient)
   private implicit val bookService: BookService[F] = BookService.withDb[F, DB]()
   private implicit val loanService: LoanService[F] = LoanService.withDb[F, DB](messageTopic)
 
@@ -89,9 +94,11 @@ class BibliogarApp[F[_]: Sync: Parallel: ContextShift: ConcurrentEffect: Timer: 
   private val apiRoutes = routes.reduceMapK(_.routes)
 
   val httpApp: HttpApp[F] = Logger.httpApp(logHeaders = false, logBody = false)(
-    (
-      swaggerRoutes.routes <+>
-        apiRoutes
-    ).orNotFound
+    KamonSupportServer((
+                         swaggerRoutes.routes <+>
+                           apiRoutes
+                       ),
+                       appConfig.server.host,
+                       appConfig.server.port).orNotFound
   )
 }

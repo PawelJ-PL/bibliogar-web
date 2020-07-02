@@ -5,6 +5,7 @@ import java.sql.DriverManager
 import cats.effect.{Async, Blocker, ContextShift, Resource, Sync}
 import cats.syntax.applicative._
 import com.github.pawelj_pl.bibliogar.api.infrastructure.config.Config
+import com.github.pawelj_pl.bibliogar.api.infrastructure.utils.tracing.ContextAwareExecutionContext
 import doobie.hikari.HikariTransactor
 import doobie.util.ExecutionContexts
 import liquibase.Liquibase
@@ -33,8 +34,10 @@ object Database {
 
   def transactor[F[_]: Async: ContextShift](dbConfig: Config.DbConfig): Resource[F, HikariTransactor[F]] =
     for {
-      connectionEc <- ExecutionContexts.fixedThreadPool[F](dbConfig.poolSize)
-      txEc         <- Blocker[F]
+      baseConnectionEc <- ExecutionContexts.fixedThreadPool[F](dbConfig.poolSize)
+      connectionEc = ContextAwareExecutionContext(baseConnectionEc)
+      baseBlocker <- Blocker[F]
+      txEc = Blocker.liftExecutionContext(ContextAwareExecutionContext(baseBlocker.blockingContext))
       transactor <- HikariTransactor
         .newHikariTransactor(dbConfig.driver, dbConfig.url, dbConfig.user, dbConfig.password, connectionEc, txEc)
         .map(tx => {

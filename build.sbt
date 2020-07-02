@@ -3,6 +3,8 @@ val commonSettings = Seq(
   scalaVersion := "2.13.1"
 )
 
+javaAgents += "io.kamon" % "kanela-agent" % "1.0.6"
+
 val root = (project in file("."))
   .settings(
     commonSettings,
@@ -14,6 +16,7 @@ val root = (project in file("."))
   .enablePlugins(GitVersioning)
   .enablePlugins(JavaAppPackaging)
   .enablePlugins(DockerPlugin)
+  .enablePlugins(JavaAgent)
   .configs(IntegrationTest)
 
 git.gitTagToVersionNumber := { tag: String =>
