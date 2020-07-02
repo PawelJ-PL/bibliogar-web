@@ -11,5 +11,7 @@ object CryptProviderFake {
     override def bcryptHash(plainText: String): F[PasswordHash[BCrypt]] = PasswordHash.apply[BCrypt](s"bcrypt($plainText)").pure[F]
 
     override def bcryptCheckPw(password: String, hash: String): F[Boolean] = (hash == s"bcrypt($password)").pure[F]
+
+    override def encodeSha256(plain: String): String = s"sha256(${plain})"
   }
 }

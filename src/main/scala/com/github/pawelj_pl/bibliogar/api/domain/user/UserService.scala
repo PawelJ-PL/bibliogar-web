@@ -3,7 +3,7 @@ package com.github.pawelj_pl.bibliogar.api.domain.user
 import java.time.Instant
 import java.time.temporal.TemporalAmount
 
-import cats.{Monad, ~>}
+import cats.~>
 import cats.data.{EitherT, OptionT}
 import cats.effect.Sync
 import cats.syntax.apply._
@@ -17,6 +17,7 @@ import com.github.pawelj_pl.bibliogar.api.infrastructure.messagebus.Message
 import com.github.pawelj_pl.bibliogar.api.infrastructure.utils.{CryptProvider, RandomProvider, TimeProvider}
 import com.github.pawelj_pl.bibliogar.api.infrastructure.utils.Misc.resourceVersion.syntax._
 import com.github.pawelj_pl.bibliogar.api.infrastructure.utils.timeSyntax._
+import com.github.pawelj_pl.bibliogar.api.infrastructure.utils.tracing.MessageEnvelope
 import fs2.concurrent.Topic
 import io.chrisdavenport.fuuid.FUUID
 import io.chrisdavenport.log4cats.Logger
@@ -36,9 +37,9 @@ trait UserService[F[_]] {
 object UserService {
   def apply[F[_]](implicit ev: UserService[F]): UserService[F] = ev
 
-  def withDb[F[_]: Monad, D[_]: Sync: TimeProvider: CryptProvider: RandomProvider: UserRepositoryAlgebra: UserTokenRepositoryAlgebra](
+  def withDb[F[_]: Sync, D[_]: Sync: TimeProvider: CryptProvider: RandomProvider: UserRepositoryAlgebra: UserTokenRepositoryAlgebra](
     authConfig: Config.AuthConfig,
-    messageTopic: Topic[F, Message]
+    messageTopic: Topic[F, MessageEnvelope]
   )(implicit dbToF: D ~> F
   ): UserService[F] =
     new UserService[F] {
@@ -61,7 +62,7 @@ object UserService {
           _ <- EitherT.right[UserError](UserTokenRepositoryAlgebra[D].create(userToken))
         } yield (savedUser, userToken))
           .mapK(dbToF)
-          .semiflatMap { case (u, t) => messageTopic.publish1(Message.UserCreated(u, t)).as(u) }
+          .semiflatMap { case (u, t) => MessageEnvelope.broadcastWithCurrentContext(Message.UserCreated(u, t), messageTopic).as(u) }
 
       override def confirmRegistration(token: String): EitherT[F, UserError, User] =
         (for {
@@ -96,11 +97,11 @@ object UserService {
           _          <- EitherT.cond[D](authResult, (), UserError.InvalidCredentials(auth.userId)).leftWiden[UserError]
           active     <- EitherT.liftF(auth.isActive[D])
           _          <- EitherT.cond[D](active, (), UserError.UserNotActive(auth)).leftWiden[UserError]
-        } yield user).mapK(dbToF)
+        } yield user)
+          .mapK(dbToF)
 
-      private def performDummyComputation: OptionT[D, (User, AuthData)] = {
+      private def performDummyComputation: OptionT[D, (User, AuthData)] =
         OptionT(CryptProvider[D].bcryptCheckPw("secret", authConfig.dummyPasswordHash).map(_ => None))
-      }
 
       override def getUser(userId: FUUID): OptionT[F, User] = UserRepositoryAlgebra[D].findUserById(userId).mapK(dbToF)
 
@@ -139,7 +140,9 @@ object UserService {
           savedToken <- OptionT.liftF(UserTokenRepositoryAlgebra[D].create(userToken))
         } yield (user, savedToken))
           .mapK(dbToF)
-          .semiflatMap { case (u, t) => messageTopic.publish1(Message.PasswordResetRequested(u, t)).as(t) }
+          .semiflatMap {
+            case (u, t) => MessageEnvelope.broadcastWithCurrentContext(Message.PasswordResetRequested(u, t), messageTopic).as(t)
+          }
 
       override def resetPassword(token: String, newPassword: String): EitherT[F, UserError, AuthData] =
         (for {

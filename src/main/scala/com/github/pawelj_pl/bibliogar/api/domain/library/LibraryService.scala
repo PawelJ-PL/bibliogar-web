@@ -8,11 +8,12 @@ import cats.syntax.eq._
 import cats.syntax.flatMap._
 import cats.syntax.functor._
 import cats.syntax.show._
-import cats.{Monad, ~>}
+import cats.~>
 import com.github.pawelj_pl.bibliogar.api.LibraryError
 import com.github.pawelj_pl.bibliogar.api.infrastructure.dto.library.LibraryDataReq
 import com.github.pawelj_pl.bibliogar.api.infrastructure.messagebus.Message
 import com.github.pawelj_pl.bibliogar.api.infrastructure.utils.Misc.resourceVersion.syntax._
+import com.github.pawelj_pl.bibliogar.api.infrastructure.utils.tracing.MessageEnvelope
 import com.github.pawelj_pl.bibliogar.api.infrastructure.utils.{RandomProvider, TimeProvider}
 import fs2.concurrent.Topic
 import io.chrisdavenport.fuuid.FUUID
@@ -30,8 +31,8 @@ trait LibraryService[F[_]] {
 object LibraryService {
   def apply[F[_]](implicit ev: LibraryService[F]): LibraryService[F] = ev
 
-  def withDb[F[_]: Monad, D[_]: TimeProvider: RandomProvider: LibraryRepositoryAlgebra: Sync](
-    messageTopic: Topic[F, Message]
+  def withDb[F[_]: Sync, D[_]: TimeProvider: RandomProvider: LibraryRepositoryAlgebra: Sync](
+    messageTopic: Topic[F, MessageEnvelope]
   )(implicit dbToF: D ~> F
   ): LibraryService[F] =
     new LibraryService[F] {
@@ -42,7 +43,7 @@ object LibraryService {
           library <- dto.toDomain[D](userId)
           _       <- logD.info(show"Creating new library: $library")
           saved   <- LibraryRepositoryAlgebra[D].create(library)
-        } yield saved).flatTap(l => messageTopic.publish1(Message.NewLibrary(l)))
+        } yield saved).flatTap(l => MessageEnvelope.broadcastWithCurrentContext(Message.NewLibrary(l), messageTopic))
 
       override def getLibraryAs(libraryId: FUUID, userId: FUUID): EitherT[F, LibraryError, Library] =
         (for {
@@ -72,7 +73,7 @@ object LibraryService {
           )
         } yield library)
           .mapK(dbToF)
-          .semiflatMap(l => messageTopic.publish1(Message.LibraryDeleted(l)))
+          .semiflatMap(l => MessageEnvelope.broadcastWithCurrentContext(Message.LibraryDeleted(l), messageTopic))
 
       override def updateLibraryAs(libraryId: FUUID, dto: LibraryDataReq, userId: FUUID): EitherT[F, LibraryError, Library] =
         (for {
@@ -87,6 +88,6 @@ object LibraryService {
           saved <- LibraryRepositoryAlgebra[D].update(updated).toRight(LibraryError.LibraryIdNotFound(updated.id)).leftWiden[LibraryError]
         } yield saved)
           .mapK(dbToF)
-          .semiflatTap(l => messageTopic.publish1(Message.LibraryUpdated(l)))
+          .semiflatTap(l => MessageEnvelope.broadcastWithCurrentContext(Message.LibraryUpdated(l), messageTopic))
     }
 }

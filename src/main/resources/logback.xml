@@ -1,10 +1,13 @@
 <configuration>
+    <conversionRule conversionWord="traceID" converterClass="kamon.instrumentation.logback.tools.TraceIDConverter" />
+    <conversionRule conversionWord="spanID" converterClass="kamon.instrumentation.logback.tools.SpanIDConverter" />
+
     <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
         <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
             <level>INFO</level>
         </filter>
         <encoder>
-            <pattern>%date{YYYY-MM-dd'T' HH:mm:ss.SSSXXX, UTC} [%level] %logger{36} [%thread] %message%n%xException</pattern>
+            <pattern>%date{YYYY-MM-dd'T' HH:mm:ss.SSSXXX, UTC} [%level] %logger{36} [%thread] | %traceID %spanID | %message%n%xException</pattern>
         </encoder>
     </appender>
 

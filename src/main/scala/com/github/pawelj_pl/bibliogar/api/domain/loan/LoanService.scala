@@ -4,7 +4,7 @@ import java.time.{ZoneOffset, ZonedDateTime}
 
 import cats.data.EitherT
 import cats.effect.Sync
-import cats.{Applicative, Monad, ~>}
+import cats.{Applicative, ~>}
 import cats.syntax.applicativeError._
 import cats.syntax.apply._
 import cats.syntax.bifunctor._
@@ -20,6 +20,7 @@ import com.github.pawelj_pl.bibliogar.api.infrastructure.dto.loan.{EditLoanReq, 
 import com.github.pawelj_pl.bibliogar.api.infrastructure.messagebus.Message
 import com.github.pawelj_pl.bibliogar.api.infrastructure.repositories.DbError
 import com.github.pawelj_pl.bibliogar.api.infrastructure.utils.Misc.resourceVersion.syntax._
+import com.github.pawelj_pl.bibliogar.api.infrastructure.utils.tracing.MessageEnvelope
 import com.github.pawelj_pl.bibliogar.api.infrastructure.utils.{RandomProvider, TimeProvider}
 import fs2.concurrent.Topic
 import io.chrisdavenport.fuuid.FUUID
@@ -38,8 +39,8 @@ trait LoanService[F[_]] {
 object LoanService {
   def apply[F[_]](implicit ev: LoanService[F]): LoanService[F] = ev
 
-  def withDb[F[_]: Monad, D[_]: Sync: TimeProvider: RandomProvider: LibraryRepositoryAlgebra: LoanRepositoryAlgebra: BookRepositoryAlgebra](
-    messageTopic: Topic[F, Message]
+  def withDb[F[_]: Sync, D[_]: Sync: TimeProvider: RandomProvider: LibraryRepositoryAlgebra: LoanRepositoryAlgebra: BookRepositoryAlgebra](
+    messageTopic: Topic[F, MessageEnvelope]
   )(implicit dbToF: D ~> F
   ): LoanService[F] =
     new LoanService[F] {
@@ -69,7 +70,7 @@ object LoanService {
           })
         } yield saved)
           .mapK(dbToF)
-          .semiflatTap(l => messageTopic.publish1(Message.NewLoan(l)))
+          .semiflatTap(l => MessageEnvelope.broadcastWithCurrentContext(Message.NewLoan(l), messageTopic))
 
       private def scoreBooks(actualBooks: List[Option[FUUID]], futureBooks: List[Option[FUUID]]): D[Unit] = {
         import cats.instances.set._
@@ -111,7 +112,7 @@ object LoanService {
           saved <- updateLoanWithRecover(toSave)
         } yield saved)
           .mapK(dbToF)
-          .semiflatTap(l => messageTopic.publish1(Message.LoanUpdated(l)))
+          .semiflatTap(l => MessageEnvelope.broadcastWithCurrentContext(Message.LoanUpdated(l), messageTopic))
 
       private def verifyLibrary(dto: EditLoanReq, userId: FUUID, allowLimitOverrun: Boolean): EitherT[D, LoanError, Unit] =
         for {
@@ -149,7 +150,7 @@ object LoanService {
           saved <- updateLoanWithRecover(toSave)
         } yield saved)
           .mapK(dbToF)
-          .semiflatTap(l => messageTopic.publish1(Message.LoanUpdated(l)))
+          .semiflatTap(l => MessageEnvelope.broadcastWithCurrentContext(Message.LoanUpdated(l), messageTopic))
 
       override def getLoanDataAs(loanId: FUUID, userId: FUUID): EitherT[F, LoanError, Loan] =
         (for {

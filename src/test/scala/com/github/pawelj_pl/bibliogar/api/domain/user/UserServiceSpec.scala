@@ -13,6 +13,7 @@ import com.github.pawelj_pl.bibliogar.api.constants.UserConstants
 import com.github.pawelj_pl.bibliogar.api.infrastructure.config.Config
 import com.github.pawelj_pl.bibliogar.api.infrastructure.dto.user.{ChangePasswordReq, Email, NickName, Password, UserDataReq, UserLoginReq, UserRegistrationReq}
 import com.github.pawelj_pl.bibliogar.api.infrastructure.messagebus.Message
+import com.github.pawelj_pl.bibliogar.api.infrastructure.utils.tracing.MessageEnvelope
 import com.github.pawelj_pl.bibliogar.api.infrastructure.utils.{CryptProvider, RandomProvider, TimeProvider}
 import com.github.pawelj_pl.bibliogar.api.testdoubles.messagebus.MessageTopicFake
 import com.github.pawelj_pl.bibliogar.api.testdoubles.repositories.{UserRepositoryFake, UserTokenRepositoryFake}
@@ -42,7 +43,7 @@ class UserServiceSpec extends AnyWordSpec with UserConstants with Matchers with 
     implicit def timeProvider[F[_]: Monad: MonadState[*[_], TestState]]: TimeProvider[F] = TimeProviderFake.instance[F]
     implicit def randomProvider[F[_]: Monad: MonadState[*[_], TestState]]: RandomProvider[F] = RandomProviderFake.instance[F]
     implicit def cryptProvider[F[_]: Applicative]: CryptProvider[F] = CryptProviderFake.instance[F]
-    def messageTopic[F[_]: Monad: MonadState[*[_], TestState]]: Topic[F, Message] = MessageTopicFake.instance[F]
+    def messageTopic[F[_]: Monad: MonadState[*[_], TestState]]: Topic[F, MessageEnvelope] = MessageTopicFake.instance[F]
 
     implicit def dbToApp: TestEffect ~> TestEffect = new (TestEffect ~> TestEffect) {
       override def apply[A](fa: TestEffect[A]): TestEffect[A] = fa
@@ -67,7 +68,7 @@ class UserServiceSpec extends AnyWordSpec with UserConstants with Matchers with 
         val expectedToken = UserToken("124", ExampleUser.id, TokenType.Registration, Instant.EPOCH, Instant.EPOCH)
         state.userRepoState shouldBe UserRepositoryFake.UserRepositoryState(users = Set(ExampleUser), authData = Set(expectedAuthData))
         state.tokenRepoState shouldBe UserTokenRepositoryFake.TokenRepositoryState(tokens = Set(expectedToken))
-        state.messageTopicState.messages should matchTo(List[Message](Message.UserCreated(ExampleUser, expectedToken)))
+        state.messageTopicState.messages.map(_.message) should matchTo(List[Message](Message.UserCreated(ExampleUser, expectedToken)))
       }
     }
 
@@ -320,7 +321,7 @@ class UserServiceSpec extends AnyWordSpec with UserConstants with Matchers with 
       result shouldBe Some(expectedToken)
       state.userRepoState shouldBe initialState.userRepoState
       state.tokenRepoState shouldBe initialState.tokenRepoState.copy(tokens = Set(expectedToken))
-      state.messageTopicState.messages should matchTo(List[Message](Message.PasswordResetRequested(ExampleUser, expectedToken)))
+      state.messageTopicState.messages.map(_.message) should matchTo(List[Message](Message.PasswordResetRequested(ExampleUser, expectedToken)))
     }
     "return None" when {
       "user not found" in {

@@ -3,7 +3,9 @@ package com.github.pawelj_pl.bibliogar.api.domain.book
 import cats.effect.IO
 import com.github.pawelj_pl.bibliogar.api.constants.BookConstants
 import com.github.pawelj_pl.bibliogar.api.Implicits.Uri._
+import com.github.pawelj_pl.bibliogar.api.infrastructure.utils.tracing.Tracing
 import com.github.pawelj_pl.bibliogar.api.infrastructure.utils.{RandomProvider, TimeProvider}
+import com.github.pawelj_pl.bibliogar.api.testdoubles.utils.tracing.DummyTracer
 import com.github.pawelj_pl.bibliogar.api.testdoubles.utils.{RandomProviderFake, TimeProviderFake}
 import com.softwaremill.diffx.scalatest.DiffMatcher
 import io.circe.literal._
@@ -18,6 +20,7 @@ import org.scalatest.wordspec.AnyWordSpec
 class GoogleBooksApiSpec extends AnyWordSpec with Matchers with DiffMatcher with BookConstants {
   implicit val timeProvider: TimeProvider[IO] = TimeProviderFake.withFixedValue[IO](Now)
   implicit val randomProvider: RandomProvider[IO] = RandomProviderFake.withFixedValues("abcd", ExampleId1)
+  implicit val tracing: Tracing[IO] = DummyTracer.instance[IO]
 
   private def googleBooksApiResponses(resp: IO[Response[IO]]): HttpApp[IO] =
     HttpRoutes

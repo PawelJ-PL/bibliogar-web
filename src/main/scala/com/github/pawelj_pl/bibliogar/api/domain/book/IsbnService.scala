@@ -11,6 +11,7 @@ import cats.syntax.functor._
 import cats.syntax.parallel._
 import cats.syntax.show._
 import com.github.pawelj_pl.bibliogar.api.infrastructure.http.Implicits.Http4sUri._
+import com.github.pawelj_pl.bibliogar.api.infrastructure.utils.tracing.Tracing
 import com.github.pawelj_pl.bibliogar.api.infrastructure.utils.{RandomProvider, TimeProvider}
 import io.chrisdavenport.log4cats.Logger
 import io.chrisdavenport.log4cats.slf4j.Slf4jLogger
@@ -28,7 +29,7 @@ trait IsbnService[F[_]] {
 object IsbnService {
   def apply[F[_]](implicit ev: IsbnService[F]): IsbnService[F] = ev
 
-  def instance[F[_]: Sync: Parallel: RandomProvider: TimeProvider](httpClient: Client[F]): IsbnService[F] = new IsbnService[F] {
+  def instance[F[_]: Sync: Parallel: RandomProvider: TimeProvider: Tracing](httpClient: Client[F]): IsbnService[F] = new IsbnService[F] {
     implicit val listTraverse: Traverse[List] = cats.instances.list.catsStdInstancesForList
 
     override def find(isbn: String): F[List[Book]] =
@@ -62,12 +63,12 @@ object OpenLibrary {
 
   private implicit val responseDecoder: Decoder[IsbnResponseEntry] = deriveDecoder[IsbnResponseEntry]
 
-  class ApiClient[F[_]: Sync: RandomProvider: TimeProvider](httpClient: Client[F]) extends IsbnApi[F] {
+  class ApiClient[F[_]: Sync: RandomProvider: TimeProvider: Tracing](httpClient: Client[F]) extends IsbnApi[F] {
     def get(isbn: String): F[Option[Book]] = {
       val params = Map("jscmd" -> "data", "format" -> "json", "bibkeys" -> show"ISBN:$isbn")
       val uri = uri"https://openlibrary.org/api/books".withQueryParams(params)
 
-      val response = httpClient.expect[Map[String, IsbnResponseEntry]](uri)
+      val response = Tracing[F].preserveContext(httpClient.expect[Map[String, IsbnResponseEntry]](uri))
       ApiHelper.responseToBook[F, Map[String, IsbnResponseEntry], IsbnResponseEntry]("OpenLibrary",
                                                                                      isbn,
                                                                                      response,
@@ -76,7 +77,7 @@ object OpenLibrary {
     }
   }
   object ApiClient {
-    def apply[F[_]: Sync: RandomProvider: TimeProvider](httpClient: Client[F]): ApiClient[F] = new ApiClient[F](httpClient)
+    def apply[F[_]: Sync: RandomProvider: TimeProvider: Tracing](httpClient: Client[F]): ApiClient[F] = new ApiClient[F](httpClient)
   }
 }
 
@@ -117,11 +118,11 @@ object GoogleBooks {
     implicit val decoder: Decoder[Response] = deriveDecoder[Response]
   }
 
-  class ApiClient[F[_]: Sync: TimeProvider: RandomProvider](httpClient: Client[F]) extends IsbnApi[F] {
+  class ApiClient[F[_]: Sync: TimeProvider: RandomProvider: Tracing](httpClient: Client[F]) extends IsbnApi[F] {
     def get(isbn: String): F[Option[Book]] = {
       val uri = uri"https://www.googleapis.com/books/v1/volumes".withQueryParam("q", show"isbn:$isbn")
 
-      val response = httpClient.expect[Response](uri)
+      val response = Tracing[F].preserveContext(httpClient.expect[Response](uri))
       ApiHelper.responseToBook[F, Response, Item]("Google Books",
                                                   isbn,
                                                   response,
@@ -130,7 +131,7 @@ object GoogleBooks {
     }
   }
   object ApiClient {
-    def apply[F[_]: Sync: TimeProvider: RandomProvider](httpClient: Client[F]): ApiClient[F] = new ApiClient[F](httpClient)
+    def apply[F[_]: Sync: TimeProvider: RandomProvider: Tracing](httpClient: Client[F]): ApiClient[F] = new ApiClient[F](httpClient)
   }
 }
 
@@ -149,18 +150,18 @@ object BN {
 
   private implicit val responseDecoder: Decoder[Response] = deriveDecoder[Response]
 
-  class ApiClient[F[_]: Sync: TimeProvider: RandomProvider](httpClient: Client[F]) extends IsbnApi[F] {
+  class ApiClient[F[_]: Sync: TimeProvider: RandomProvider: Tracing](httpClient: Client[F]) extends IsbnApi[F] {
     def get(isbn: String): F[Option[Book]] = {
       val params = Map("isbnIssn" -> isbn, "limit" -> "1")
       val uri = uri"https://data.bn.org.pl/api/bibs.json".withQueryParams(params)
 
-      val response = httpClient.expect[Response](uri)
+      val response = Tracing[F].preserveContext(httpClient.expect[Response](uri))
       ApiHelper.responseToBook[F, Response, Item]("Biblioteka Narodowa", isbn, response, _.bibs.headOption, _.toDomain[F](isbn))
     }
   }
 
   object ApiClient {
-    def apply[F[_]: Sync: TimeProvider: RandomProvider](httpClient: Client[F]) = new ApiClient[F](httpClient)
+    def apply[F[_]: Sync: TimeProvider: RandomProvider: Tracing](httpClient: Client[F]) = new ApiClient[F](httpClient)
   }
 }
 

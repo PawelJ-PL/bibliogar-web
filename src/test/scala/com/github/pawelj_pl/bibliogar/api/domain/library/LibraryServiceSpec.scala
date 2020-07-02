@@ -10,6 +10,7 @@ import com.github.pawelj_pl.bibliogar.api.constants.{LibraryConstants, UserConst
 import com.github.pawelj_pl.bibliogar.api.infrastructure.dto.library.{BooksLimit, DurationValue, LibraryDataReq, LibraryName}
 import com.github.pawelj_pl.bibliogar.api.infrastructure.messagebus.Message
 import com.github.pawelj_pl.bibliogar.api.infrastructure.messagebus.Message.{LibraryDeleted, LibraryUpdated, NewLibrary}
+import com.github.pawelj_pl.bibliogar.api.infrastructure.utils.tracing.MessageEnvelope
 import com.github.pawelj_pl.bibliogar.api.infrastructure.utils.{RandomProvider, TimeProvider}
 import com.github.pawelj_pl.bibliogar.api.testdoubles.messagebus.MessageTopicFake
 import com.github.pawelj_pl.bibliogar.api.testdoubles.repositories.LibraryRepositoryFake
@@ -32,7 +33,7 @@ class LibraryServiceSpec extends AnyWordSpec with Matchers with DiffMatcher with
     implicit def timeProvider[F[_]: Monad: MonadState[*[_], TestState]]: TimeProvider[F] = TimeProviderFake.instance[F]
     implicit def randomProvider[F[_]: Monad: MonadState[*[_], TestState]]: RandomProvider[F] = RandomProviderFake.instance[F]
     implicit def librariesRepo[F[_]: Monad: MonadState[*[_], TestState]]: LibraryRepositoryAlgebra[F] = LibraryRepositoryFake.instance[F]
-    def messageTopic[F[_]: Monad: MonadState[*[_], TestState]]: Topic[F, Message] = MessageTopicFake.instance[F]
+    def messageTopic[F[_]: Monad: MonadState[*[_], TestState]]: Topic[F, MessageEnvelope] = MessageTopicFake.instance[F]
 
     implicit def dbToApp: TestEffect ~> TestEffect = new (TestEffect ~> TestEffect) {
       override def apply[A](fa: TestEffect[A]): TestEffect[A] = fa
@@ -56,7 +57,7 @@ class LibraryServiceSpec extends AnyWordSpec with Matchers with DiffMatcher with
       val (state, result) = instance.createLibraryAs(ExampleDataDto, ExampleUser.id).run(initialState).unsafeRunSync()
       result should matchTo(expectedLibrary)
       state.libraryRepoState.libraries.toList should matchTo(List(expectedLibrary))
-      state.messageTopicState.messages should matchTo(List[Message](NewLibrary(expectedLibrary)))
+      state.messageTopicState.messages.map(_.message) should matchTo(List[Message](NewLibrary(expectedLibrary)))
     }
   }
 
@@ -111,7 +112,7 @@ class LibraryServiceSpec extends AnyWordSpec with Matchers with DiffMatcher with
       val (state, result) = instance.deleteLibraryAs(ExampleLibrary.id, ExampleUser.id).value.run(initialState).unsafeRunSync()
       result shouldBe Right((): Unit)
       state.libraryRepoState.libraries should contain theSameElementsAs Set(secondLib)
-      state.messageTopicState.messages should matchTo(List[Message](LibraryDeleted(ExampleLibrary)))
+      state.messageTopicState.messages.map(_.message) should matchTo(List[Message](LibraryDeleted(ExampleLibrary)))
     }
     "fail" when {
       "library not found" in {
@@ -149,7 +150,8 @@ class LibraryServiceSpec extends AnyWordSpec with Matchers with DiffMatcher with
         val (state, result) = instance.updateLibraryAs(ExampleLibrary.id, updateDto, ExampleUser.id).value.run(initialState).unsafeRunSync()
         result should matchTo[Either[LibraryError, Library]](Right(ExampleLibrary.copy(name = "other name")))
         state.libraryRepoState.libraries.toList should matchTo(Set(ExampleLibrary.copy(name = "other name")).toList)
-        state.messageTopicState.messages should matchTo(List[Message](LibraryUpdated(ExampleLibrary.copy(name = "other name"))))
+        state.messageTopicState.messages.map(_.message) should matchTo(
+          List[Message](LibraryUpdated(ExampleLibrary.copy(name = "other name"))))
       }
       "version match" in {
         val dto = updateDto.copy(version = Some(ExampleLibrary.version))

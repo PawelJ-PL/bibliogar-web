@@ -8,10 +8,12 @@ import cats.mtl.MonadState
 import com.github.pawelj_pl.bibliogar.api.constants.UserConstants
 import com.github.pawelj_pl.bibliogar.api.domain.user.{TokenType, UserToken}
 import com.github.pawelj_pl.bibliogar.api.infrastructure.messagebus.Message
+import com.github.pawelj_pl.bibliogar.api.infrastructure.utils.tracing.{MessageEnvelope, Tracing}
 import com.github.pawelj_pl.bibliogar.api.infrastructure.utils.{Correspondence, MessageComposer}
 import com.github.pawelj_pl.bibliogar.api.testdoubles.messagebus.MessageTopicFake
 import com.github.pawelj_pl.bibliogar.api.testdoubles.utils.{CorrespondenceMock, MessageComposerMock}
 import com.github.pawelj_pl.bibliogar.api.testdoubles.utils.CorrespondenceMock.{Message => MailMessage}
+import com.github.pawelj_pl.bibliogar.api.testdoubles.utils.tracing.DummyTracer
 import com.olegpy.meow.hierarchy.deriveMonadState
 import com.softwaremill.diffx.scalatest.DiffMatcher
 import fs2.concurrent.Topic
@@ -27,7 +29,8 @@ class EmailSenderHandlerSpec extends AnyWordSpec with Matchers with DiffMatcher 
   val instance: EmailSenderHandler[TestEffect] = {
     implicit def notification[F[_]: MonadState[*[_], TestState]]: Correspondence[F] = CorrespondenceMock.instance[F]
     implicit def messageComposer[F[_]: Applicative]: MessageComposer[F] = MessageComposerMock.instance[F]
-    def messageTopic[F[_]: Monad: MonadState[*[_], TestState]]: Topic[F, Message] = MessageTopicFake.instance[F]
+    implicit val tracing: Tracing[TestEffect] = DummyTracer.instance
+    def messageTopic[F[_]: Monad: MonadState[*[_], TestState]]: Topic[F, MessageEnvelope] = MessageTopicFake.instance[F]
 
     new EmailSenderHandler[TestEffect](messageTopic, 10)
   }
@@ -37,11 +40,12 @@ class EmailSenderHandlerSpec extends AnyWordSpec with Matchers with DiffMatcher 
 
   "Handler" should {
     "handle new user messages" in {
-      val messages = List(
+      val rawMessages = List(
         Message.UserCreated(ExampleUser, ExampleRegistrationToken),
         Message.TopicStarted,
         Message.UserCreated(ExampleUser.copy(email = "other@example.org"), ExampleRegistrationToken.copy(token = "aaa"))
       )
+      val messages = rawMessages.map(MessageEnvelope(_, None))
       val initialState = TestState(messageTopicState = MessageTopicFake.MessageTopicState(messages))
       val state = instance.handle.compile.drain.runS(initialState).unsafeRunSync()
       state.notificationState.sentMessages.toList should matchTo(List(
@@ -51,11 +55,12 @@ class EmailSenderHandlerSpec extends AnyWordSpec with Matchers with DiffMatcher 
     }
 
     "handle reset password requested messages" in {
-      val messages = List(
+      val rawMessages = List(
         Message.PasswordResetRequested(ExampleUser, ExampleResetPasswordToken),
         Message.TopicStarted,
         Message.PasswordResetRequested(ExampleUser.copy(email = "other@example.org"), ExampleRegistrationToken.copy(token = "bbb"))
       )
+      val messages = rawMessages.map(MessageEnvelope(_, None))
       val initialState = TestState(messageTopicState = MessageTopicFake.MessageTopicState(messages))
       val state = instance.handle.compile.drain.runS(initialState).unsafeRunSync()
       state.notificationState.sentMessages.toList should matchTo(List(
